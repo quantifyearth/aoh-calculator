@@ -1,0 +1,10 @@
+numpy
+geopandas
+
+gdal[numpy]==3.6.0
+
+git+https://github.com/carboncredits/yirgacheffe
+
+pylint
+mypy
+pytest
