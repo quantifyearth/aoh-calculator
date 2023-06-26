@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 from fiona.errors import DriverError
 from geopandas import gpd
-from yirgacheffe.layers import RasterLayer, VectorLayer
+from yirgacheffe.layers import RasterLayer, VectorLayer, ConstantLayer
 
 
 def load_crosswalk_table(table_file_name: str) -> Dict[str,int]:
@@ -61,6 +61,7 @@ def aohcalc(
 	filtered_elevation = elevation_map.numpy_apply(lambda chunk: np.logical_and(chunk >= elevation_lower, chunk <= elevation_upper))
 
 	calc = filtered_habtitat * filtered_elevation * range_map * 255
+	calc = calc + (range_map.numpy_apply(lambda chunk: (1 - chunk)) * 128)
 	calc.save(result)
 
 def main():
