@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 import sys
-from typing import Dict
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
@@ -15,11 +15,29 @@ def load_crosswalk_table(table_file_name: str) -> Dict[str,int]:
 	rawdata = pd.read_csv(table_file_name)
 	result = dict()
 	for _, row in rawdata.iterrows():
-		result[row.code] = int(row.value)
+		try:
+			result[row.code].append(int(row.value))
+		except KeyError:
+			result[row.code] = [int(row.value)]
+	return result
+
+def crosswalk_habitats(crosswalk_table: Dict[str, int], raw_habitats: List) -> List:
+	result = []
+	for habitat in raw_habitats:
+		try:
+			hab = float(habitat)
+		except ValueError:
+			continue
+		try:
+			crosswalked_habatit = crosswalk_table[hab]
+		except KeyError:
+			continue
+		result += crosswalked_habatit
 	return result
 
 def aohcalc(
 	species_id: int,
+	seasonality: int,
 	results_path: str,
 	habitat: str,
 	elevation: str,
@@ -34,7 +52,7 @@ def aohcalc(
 	species_info = gpd.read_file(info)
 
 	# do we have this species?
-	filtered_species_info = species_info[species_info['id_no']==species_id]
+	filtered_species_info = species_info[species_info['id_no']==species_id][species_info['seasonal']==seasonality]
 	if filtered_species_info.shape[0] == 0:
 		raise ValueError(f"Species {species_id} was not in input data")
 
@@ -44,24 +62,35 @@ def aohcalc(
 	elevation_lower = filtered_species_info.elevation_lower.values[0]
 	elevation_upper = filtered_species_info.elevation_upper.values[0]
 	raw_habitats = filtered_species_info.full_habitat_code.values[0].split('|')
-	habitat_list = [crosswalk_table[float(x)] for x in raw_habitats]
+	habitat_list = crosswalk_habitats(crosswalk_table, raw_habitats)
+	assert len(habitat_list) > 0, f"No habitat for {species_id} {seasonality}"
+
+	# range_info = gpd.read_file(range)
+	# filtered_range_info = range_info[species_info['id_no']==species_id][species_info['seasonal']==seasonality]
+	# assert filtered_range_info.shape == filtered_species_info.shape
 
 	habitat_map = RasterLayer.layer_from_file(habitat)
 	elevation_map = RasterLayer.layer_from_file(elevation)
-	range_map = VectorLayer.layer_from_file(info, f'id_no = {species_id}', habitat_map.pixel_scale, habitat_map.projection)
+	range_map = VectorLayer.layer_from_file(info, f'id_no = {species_id} AND seasonal = {seasonality}', habitat_map.pixel_scale, habitat_map.projection)
 
 	layers = [habitat_map, elevation_map, range_map]
 	intersection = RasterLayer.find_intersection(layers)
 	for layer in layers:
 		layer.set_window_for_intersection(intersection)
-	result_filename = os.path.join(results_path, f"{species_id}.tif")
-	result = RasterLayer.empty_raster_layer_like(habitat_map, filename=result_filename)
+	result_filename = os.path.join(results_path, f"{species_id}_{seasonality}.tif")
+	result = RasterLayer.empty_raster_layer_like(habitat_map, filename=result_filename, compress=True, nodata=2)
+	# b = result._dataset.GetRasterBand(1)
+	# b.SetMetadataItem('NBITS', '2', 'IMAGE_STRUCTURE')
 
-	filtered_habtitat = habitat_map.numpy_apply(lambda chunk: np.isin(chunk, habitat_list))
+	try:
+		filtered_habtitat = habitat_map.numpy_apply(lambda chunk: np.isin(chunk, habitat_list))
+	except ValueError:
+		print(habitat_list)
+		assert False
 	filtered_elevation = elevation_map.numpy_apply(lambda chunk: np.logical_and(chunk >= elevation_lower, chunk <= elevation_upper))
 
-	calc = filtered_habtitat * filtered_elevation * range_map * 255
-	calc = calc + (range_map.numpy_apply(lambda chunk: (1 - chunk)) * 128)
+	calc = filtered_habtitat * filtered_elevation * range_map
+	calc = calc + (range_map.numpy_apply(lambda chunk: (1 - chunk)) * 2)
 	calc.save(result)
 
 def main():
@@ -72,6 +101,13 @@ def main():
 		help="animal taxonomy id",
 		required=True,
 		dest="species"
+	)
+	parser.add_argument(
+		'--seasonality',
+		type=int,
+		help="Season for migratory species",
+		required=True,
+		dest="seasonality",
 	)
 	parser.add_argument(
 		'--config',
@@ -101,21 +137,12 @@ def main():
 		print(f'Failed to parse {args["config_path"]} at line {e.lineno}, column {e.colno}: {e.msg}', file=sys.stderr)
 		sys.exit(1)
 
-	try:
-		aohcalc(
-			args['species'],
-			args['results_path'],
-			**config
-		)
-	except DriverError as exc:
-		print(exc.args[0], file=sys.stderr)
-		sys.exit(1)
-	except ValueError as exc:
-		print(exc.msg, file=sys.stderr)
-		sys.exit(1)
-	except FileNotFoundError as exc:
-		print(f"Failed to find {exc.filename}: {exc.strerror}", file=sys.stderr)
-		sys.exit()
+	aohcalc(
+		args['species'],
+		args['seasonality'],
+		args['results_path'],
+		**config
+	)
 
 
 if __name__ == "__main__":
