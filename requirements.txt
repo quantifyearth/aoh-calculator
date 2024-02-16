@@ -5,7 +5,8 @@ zenodo_search
 
 gdal[numpy]==3.6.2
 
-git+https://github.com/carboncredits/yirgacheffe
+git+https://github.com/quantifyearth/pyshark
+git+https://github.com/quantifyearth/yirgacheffe
 
 pylint
 mypy

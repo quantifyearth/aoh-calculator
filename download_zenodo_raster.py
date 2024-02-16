@@ -1,10 +1,9 @@
 import argparse
-import json
 import os
 import sys
 from http import HTTPStatus
 
-import pyshark
+import pyshark # pylint: disable=W0611
 import requests
 
 def main() -> None:
@@ -26,9 +25,9 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    response = requests.get(f'https://zenodo.org/api/records/{args.zenodo_id}')
+    response = requests.get(f'https://zenodo.org/api/records/{args.zenodo_id}', timeout=60)
     if response.status_code != HTTPStatus.OK:
-        printf(f"Got a {response.status_code} response from zenodo", file=sys.stderr)
+        print(f"Got a {response.status_code} response from zenodo", file=sys.stderr)
         sys.exit(-1)
     record = response.json()
 
@@ -45,7 +44,7 @@ def main() -> None:
             pass
         break
     if url is None:
-        print(f"Failed to find URL for download in Zenodo response", file=sys.stderr)
+        print("Failed to find URL for download in Zenodo response", file=sys.stderr)
         sys.exit(-1)
 
     # Note that zenodo file paths can have subdirs in them
@@ -53,11 +52,10 @@ def main() -> None:
     results_directory, filename = os.path.split(target_file)
     os.makedirs(results_directory, exist_ok=True)
 
-    with requests.get(url, stream=True) as response:
+    with requests.get(url, stream=True, timeout=60) as response:
         with open(target_file, "wb") as download:
             for chunk in response.iter_content(chunk_size=1024*1024):
                 download.write(chunk)
-
 
 if __name__ == "__main__":
     main()
