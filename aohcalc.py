@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from geopandas import gpd
 from yirgacheffe.layers import RasterLayer, VectorLayer
+from alive_progress import alive_bar
 
 def load_crosswalk_table(table_file_name: str) -> Dict[str,int]:
     rawdata = pd.read_csv(table_file_name)
@@ -40,7 +41,7 @@ def aohcalc(
     results_path: str,
     habitat: str,
     elevation: str,
-    _species_range: str,
+    species_range: str, # pylint: disable=W0613
     info: str,
     crosswalk: str,
 ) -> None:
@@ -103,7 +104,8 @@ def aohcalc(
 
     calc = filtered_habtitat * filtered_elevation * range_map
     calc = calc + (range_map.numpy_apply(lambda chunk: (1 - chunk)) * 2)
-    calc.save(result)
+    with alive_bar(manual=True) as bar:
+        calc.save(result, callback=bar)
 
 def main():
     parser = argparse.ArgumentParser(description="Area of habitat calculator.")
@@ -138,7 +140,6 @@ def main():
         default=None,
     )
     args = vars(parser.parse_args())
-    print(args)
     try:
         with open(args['config_path'], 'r', encoding='utf-8') as config_file:
             config = json.load(config_file)

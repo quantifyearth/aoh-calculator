@@ -1,6 +1,6 @@
 {
-	"habitat": "/maps/mwd24/tmp/iucn/inputs/lumbierres-10-5281_zenodo-5146073-v2.tif",
-	"elevation": "/maps/mwd24/tmp/iucn/inputs/dem-100m-esri54017.tif",
+	"habitat": "/maps/mwd24/iucn/inputs/lumbierres-10-5281_zenodo-5146073-v2.tif",
+	"elevation": "/maps/mwd24/iucn/inputs/dem-100m-esri54017.tif",
 	"species_range": "/maps/mwd24/iucn-aoh/test_species.geojson",
 	"info": "/maps/mwd24/iucn-aoh/test_species_hab_elev.geojson",
 	"crosswalk": "R/aoh/data-raw/crosswalk-lumb-cgls-data.csv"

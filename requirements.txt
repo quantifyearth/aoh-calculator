@@ -1,9 +1,10 @@
+alive-progress
 numpy
 geopandas
 requests
 zenodo_search
 
-gdal[numpy]==3.6.2
+gdal[numpy]
 
 git+https://github.com/quantifyearth/pyshark
 git+https://github.com/quantifyearth/yirgacheffe
