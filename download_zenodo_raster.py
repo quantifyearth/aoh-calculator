@@ -16,9 +16,9 @@ def main() -> None:
         dest='zenodo_id',
     )
     parser.add_argument(
-        '--output_directory',
+        '--output',
         type=str,
-        help='directory where area geotiff should be stored',
+        help='path where area geotiff should be stored',
         required=False,
         dest='results_path',
         default=".",
@@ -48,12 +48,11 @@ def main() -> None:
         sys.exit(-1)
 
     # Note that zenodo file paths can have subdirs in them
-    target_file = os.path.join(args.results_path, filename)
-    results_directory, filename = os.path.split(target_file)
+    results_directory, _ = os.path.split(args.results_path)
     os.makedirs(results_directory, exist_ok=True)
 
     with requests.get(url, stream=True, timeout=60) as response:
-        with open(target_file, "wb") as download:
+        with open(args.results_path, "wb") as download:
             for chunk in response.iter_content(chunk_size=1024*1024):
                 download.write(chunk)
 
