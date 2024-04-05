@@ -1,7 +1,5 @@
 import argparse
-import json
 import os
-import sys
 from typing import Dict, List
 
 import pyshark # pylint: disable=W0611
@@ -36,43 +34,31 @@ def crosswalk_habitats(crosswalk_table: Dict[str, int], raw_habitats: List) -> L
     return result
 
 def aohcalc(
-    species_id: int,
-    seasonality: int,
-    results_path: str,
-    habitat: str,
-    elevation: str,
-    species_range: str, # pylint: disable=W0613
-    info: str,
-    crosswalk: str,
+    habitat_path: str,
+    elevation_path: str,
+    crosswalk_path: str,
+    species_data_path: str,
+    output_directory_path: str,
 ) -> None:
-    crosswalk_table = load_crosswalk_table(crosswalk)
+    os.makedirs(output_directory_path, exist_ok=True)
 
-    os.makedirs(results_path, exist_ok=True)
+    crosswalk_table = load_crosswalk_table(crosswalk_path)
 
-    species_info = gpd.read_file(info)
-
-    # do we have this species?
-    filtered_species_info = species_info[species_info['id_no']==species_id][species_info['seasonal']==seasonality]
-    if filtered_species_info.shape[0] == 0:
-        raise ValueError(f"Species {species_id} was not in input data")
-
-    # Further filter...
-    # TODO
+    filtered_species_info = gpd.read_file(species_data_path)
     assert filtered_species_info.shape[0] == 1
     elevation_lower = filtered_species_info.elevation_lower.values[0]
     elevation_upper = filtered_species_info.elevation_upper.values[0]
     raw_habitats = filtered_species_info.full_habitat_code.values[0].split('|')
     habitat_list = crosswalk_habitats(crosswalk_table, raw_habitats)
+
+    species_id = filtered_species_info.id_no.values[0]
+    seasonality = filtered_species_info.seasonal.values[0]
     assert len(habitat_list) > 0, f"No habitat for {species_id} {seasonality}"
 
-    # range_info = gpd.read_file(range)
-    # filtered_range_info = range_info[species_info['id_no']==species_id][species_info['seasonal']==seasonality]
-    # assert filtered_range_info.shape == filtered_species_info.shape
-
-    habitat_map = RasterLayer.layer_from_file(habitat)
-    elevation_map = RasterLayer.layer_from_file(elevation)
+    habitat_map = RasterLayer.layer_from_file(habitat_path)
+    elevation_map = RasterLayer.layer_from_file(elevation_path)
     range_map = VectorLayer.layer_from_file_like(
-        info,
+        species_data_path,
         f'id_no = {species_id} AND seasonal = {seasonality}',
         habitat_map
     )
@@ -82,7 +68,7 @@ def aohcalc(
     for layer in layers:
         layer.set_window_for_intersection(intersection)
 
-    result_filename = os.path.join(results_path, f"{species_id}_{seasonality}.tif")
+    result_filename = os.path.join(output_directory_path, f"{species_id}_{seasonality}.tif")
     result = RasterLayer.empty_raster_layer_like(
         habitat_map,
         filename=result_filename,
@@ -107,54 +93,51 @@ def aohcalc(
     with alive_bar(manual=True) as bar:
         calc.save(result, callback=bar)
 
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description="Area of habitat calculator.")
     parser.add_argument(
-        '--taxid',
-        type=int,
-        help="animal taxonomy id",
-        required=True,
-        dest="species"
-    )
-    parser.add_argument(
-        '--seasonality',
-        type=int,
-        help="Season for migratory species",
-        required=True,
-        dest="seasonality",
-    )
-    parser.add_argument(
-        '--config',
+        '--habitat',
         type=str,
-        help="path of configuration json",
-        required=False,
-        dest="config_path",
-        default="config.json"
+        help="habitat raster",
+        required=True,
+        dest="habitat_path"
     )
     parser.add_argument(
-        '--geotiffs',
+        '--elevation',
+        type=str,
+        help="elevation raster",
+        required=True,
+        dest="elevation_path",
+    )
+    parser.add_argument(
+        '--crosswalk',
+        type=str,
+        help="habitat crosswalk table path",
+        required=True,
+        dest="crosswalk_path",
+    )
+    parser.add_argument(
+        '--speciesdata',
+        type=str,
+        help="Single species/seasonality geojson",
+        requires=True,
+        dest="species_data_path"
+    )
+    parser.add_argument(
+        '--output_directory',
         type=str,
         help='directory where area geotiffs should be stored',
         required=True,
-        dest='results_path',
-        default=None,
+        dest='output_path',
     )
-    args = vars(parser.parse_args())
-    try:
-        with open(args['config_path'], 'r', encoding='utf-8') as config_file:
-            config = json.load(config_file)
-    except FileNotFoundError:
-        print(f'Failed to find configuration json file {args["config_path"]}', file=sys.stderr)
-        sys.exit(1)
-    except json.decoder.JSONDecodeError as e:
-        print(f'Failed to parse {args["config_path"]} at line {e.lineno}, column {e.colno}: {e.msg}', file=sys.stderr)
-        sys.exit(1)
+    args = parser.parse_args()
 
     aohcalc(
-        args['species'],
-        args['seasonality'],
-        args['results_path'],
-        **config
+        args.habitat_path,
+        args.elevation_path,
+        args.crosswalk_path,
+        args.species_data_path,
+        args.output_path
     )
 
 if __name__ == "__main__":

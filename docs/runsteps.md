@@ -35,7 +35,7 @@ Habitat maps store habitat types in int types typically, the IUCN range data for
 
 ### Fetching the habitat map
 
-To asist with prove
+To assist with provenance, we download the data from the Zenodo ID.
 
 ```shark-run:aohbuilder
 python3 ./download_zenodo_raster.py --zenodo_id 6904020 --output /data/habitat.tif
@@ -64,8 +64,7 @@ TODO
 ### Get per species range data
 
 ```shark-run:aohbuilder
-python3 ./extract_data_per_species.py --rangeinfo /data/canned/test_species.geojson \
-                                      --speciesinfo /data/canned/test_species_hab_elev.geojson \
+python3 ./extract_data_per_species.py --speciesdata /data/canned/test_species_hab_elev.geojson \
                                       --output /data/species-info/
 ```
 
@@ -77,6 +76,6 @@ For each speces we run the following:
 python3 ./aohcalc.py --habitat /data/habitat.tif \
                      --elevation /data/elevation.tif \
                      --crosswalk /data/prioritizr-aoh/data-raw/crosswalk-lumb-cgls-data.csv \
-                     --species-info /data/species-info/* \
+                     --speciesdata /data/species-info/* \
                      --output /data/aohs/
 ```
