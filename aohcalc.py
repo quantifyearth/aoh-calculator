@@ -46,14 +46,16 @@ def aohcalc(
 
     filtered_species_info = gpd.read_file(species_data_path)
     assert filtered_species_info.shape[0] == 1
-    elevation_lower = filtered_species_info.elevation_lower.values[0]
-    elevation_upper = filtered_species_info.elevation_upper.values[0]
+    elevation_lower = int(filtered_species_info.elevation_lower.values[0])
+    elevation_upper = int(filtered_species_info.elevation_upper.values[0])
     raw_habitats = filtered_species_info.full_habitat_code.values[0].split('|')
     habitat_list = crosswalk_habitats(crosswalk_table, raw_habitats)
 
     species_id = filtered_species_info.id_no.values[0]
     seasonality = filtered_species_info.seasonal.values[0]
-    assert len(habitat_list) > 0, f"No habitat for {species_id} {seasonality}"
+    if len(habitat_list) == 0:
+        print(f"No habitat for {species_id} {seasonality}")
+        return
 
     habitat_map = RasterLayer.layer_from_file(habitat_path)
     elevation_map = RasterLayer.layer_from_file(elevation_path)
@@ -120,7 +122,7 @@ def main() -> None:
         '--speciesdata',
         type=str,
         help="Single species/seasonality geojson",
-        requires=True,
+        required=True,
         dest="species_data_path"
     )
     parser.add_argument(

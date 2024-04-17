@@ -1,11 +1,4 @@
-FROM golang:bullseye AS littlejohn
-RUN git clone https://github.com/carboncredits/littlejohn.git
-WORKDIR littlejohn
-RUN go build
-
 from  ghcr.io/osgeo/gdal:ubuntu-small-3.8.1
-
-COPY --from=littlejohn /go/littlejohn/littlejohn /bin/littlejohn
 
 RUN apt-get update -qqy && \
 	apt-get install -qy \
@@ -18,6 +11,7 @@ RUN apt-get update -qqy && \
 # gdal's python bindings are sad. Pandas we pull out as its slow
 # to build, and this means it'll be cached
 RUN pip install --upgrade pip
+RUN pip install cypthon
 RUN pip install numpy
 RUN pip install gdal[numpy]==3.8.1
 RUN pip install pandas

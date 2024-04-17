@@ -4,7 +4,7 @@ geopandas
 psycopg2
 requests
 pyproj
-sqlalchemy2
+SQLAlchemy
 zenodo_search
 
 gdal[numpy]
