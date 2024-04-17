@@ -3,7 +3,6 @@ import os
 
 import geopandas as gpd
 import pyproj
-import shapely
 from sqlalchemy import create_engine
 from sqlalchemy import text
 
@@ -38,8 +37,8 @@ unique_seasons AS (
         habitat_lookup.code AS habitat_code,
         STRING_AGG(habitat_lookup.code, '|') OVER (PARTITION BY taxons.scientific_name, habitat_seasons.seasonal) AS full_habitat_code,
         habitat_lookup.description,
-        (assessment_supplementary_infos.supplementary_fields->>'ElevationLower.limit')::numeric AS elev_lower,
-        (assessment_supplementary_infos.supplementary_fields->>'ElevationUpper.limit')::numeric AS elev_upper,
+        (assessment_supplementary_infos.supplementary_fields->>'ElevationLower.limit')::numeric AS elevation_lower,
+        (assessment_supplementary_infos.supplementary_fields->>'ElevationUpper.limit')::numeric AS elevation_upper,
         assessment_ranges.geom,
         ROW_NUMBER() OVER (PARTITION BY taxons.scientific_name, habitat_seasons.seasonal ORDER BY assessments.id) AS rn
     FROM 
@@ -56,8 +55,8 @@ unique_seasons AS (
 SELECT 
     id_no,
     seasonal,
-    elev_lower,
-    elev_upper,
+    elevation_lower,
+    elevation_upper,
     full_habitat_code,
     geom as geometry
 FROM 
@@ -69,12 +68,12 @@ LIMIT
     10
 """
 
-DB_HOST = os.getenv("DB_HOST") 
+DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT", "5432")
 DB_NAME = os.getenv("DB_NAME")
 DB_USER = os.getenv("DB_USER")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_CONFIG = (         
+DB_CONFIG = (
 	f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 )
 
@@ -86,7 +85,7 @@ def extract_data_per_species(
     # The geometry is in CRS 4326, but the AoH work is done in World_Behrmann, aka Projected CRS: ESRI:54017
     src_crs = pyproj.CRS.from_epsg(4326)
     target_crs = pyproj.CRS.from_string("ESRI:54017")
-    # transformer = pyproj.Transformer(src_crs, target_crs) 
+    # transformer = pyproj.Transformer(src_crs, target_crs)
 
     engine = create_engine(DB_CONFIG, echo=False)
     dfi = gpd.read_postgis(text(STATEMENT), con=engine, geom_col="geometry", chunksize=1024)

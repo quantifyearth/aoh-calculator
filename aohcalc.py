@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 from typing import Dict, List
 
 import pyshark # pylint: disable=W0611
@@ -46,9 +47,15 @@ def aohcalc(
 
     filtered_species_info = gpd.read_file(species_data_path)
     assert filtered_species_info.shape[0] == 1
-    elevation_lower = int(filtered_species_info.elevation_lower.values[0])
-    elevation_upper = int(filtered_species_info.elevation_upper.values[0])
-    raw_habitats = filtered_species_info.full_habitat_code.values[0].split('|')
+
+    try:
+        elevation_lower = int(filtered_species_info.elevation_lower.values[0])
+        elevation_upper = int(filtered_species_info.elevation_upper.values[0])
+        raw_habitats = filtered_species_info.full_habitat_code.values[0].split('|')
+    except (AttributeError, TypeError):
+        print(f"Species data missing one or more needed attributes: {filtered_species_info}", file=sys.stderr)
+        sys.exit()
+
     habitat_list = crosswalk_habitats(crosswalk_table, raw_habitats)
 
     species_id = filtered_species_info.id_no.values[0]

@@ -1,10 +1,8 @@
 alive-progress
 numpy
 geopandas
-psycopg2
 requests
 pyproj
-SQLAlchemy
 zenodo_search
 
 gdal[numpy]

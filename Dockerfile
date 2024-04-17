@@ -11,7 +11,6 @@ RUN apt-get update -qqy && \
 # gdal's python bindings are sad. Pandas we pull out as its slow
 # to build, and this means it'll be cached
 RUN pip install --upgrade pip
-RUN pip install cypthon
 RUN pip install numpy
 RUN pip install gdal[numpy]==3.8.1
 RUN pip install pandas
