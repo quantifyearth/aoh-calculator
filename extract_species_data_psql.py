@@ -1,6 +1,7 @@
 import argparse
 import os
 
+import pyshark
 import geopandas as gpd
 import pyproj
 from sqlalchemy import create_engine
@@ -55,8 +56,8 @@ unique_seasons AS (
 SELECT 
     id_no,
     seasonal,
-    elevation_lower,
-    elevation_upper,
+    COALESCE(elevation_lower, -500.0) as elevation_lower,
+    COALESCE(elevation_upper, 9000.0) as elevation_upper,
     full_habitat_code,
     geom as geometry
 FROM 
@@ -65,7 +66,7 @@ WHERE
     rn = 1
     AND habitat_id is not null
 LIMIT 
-    10
+    50
 """
 
 DB_HOST = os.getenv("DB_HOST")
