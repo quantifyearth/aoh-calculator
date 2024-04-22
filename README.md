@@ -1,6 +1,8 @@
 # AoH Calculator
 
-This repository contains code for making Area of Habitat (AoH) rasters from a mix of data sources:
+This repository contains code for making Area of Habitat (AoH) rasters from a mix of data sources. This work is part of the [LIFE biodiversity map](https://www.cambridge.org/engage/coe/article-details/660e6f08418a5379b00a82b2) work at the University of Cambridge; the remainder of the analysis pipeline will be open sourced once the full paper has been accepted for publication, but given the importance of AoH calculations for many different analyses, we've opened this section early to allow others to re-use our efforts rather than spend time on yet another AoH implementation.
+
+To generate a set of AoH rasters you will need:
 
 * IUCN range and other metadata (habitat preference, elevation, seasonality)
 * A habitat map raster
@@ -10,7 +12,7 @@ The raster maps must be at the same scale. This code has been used with Lumbierr
 
 For examples on how to run the code see the docs directory.
 
-This project makes heavy use of [Yirgacheffe](https://github.com/quantifyearth/yirgacheffe) to do the numerical work, and the code in this repository is mostly for getting the data to feed to yirgacheffe.
+This project makes heavy use of [Yirgacheffe](https://github.com/quantifyearth/yirgacheffe) to do the numerical  work, and the code in this repository is mostly for getting the data to feed to yirgacheffe. The advantages of using Yirgacheffe are that it hides all the offsetting required for the math to keep the AoH logic simple, deals with the archaic GDAL API bindings, and uses map chunking to mean progress can made with minimal memory footprints despite some base map rasters being 150GB and up.
 
 # Outputs
 
