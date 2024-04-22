@@ -3,7 +3,9 @@
 
 ## Building the environment
 
-The dockerfile that comes with the repo should be used to run the pipeline.
+### The geospatial compute container
+
+The dockerfile that comes with the repo should be used to run the compute parts of the pipeline.
 
 ```
 docker build . -tag aohbuilder
@@ -22,6 +24,21 @@ Alternatively you can build your own python virtual env assuming you have everyt
 python3 -m virtualenv ./venv
 . ./venv/bin/activate
 pip install -r requirements.txt
+```
+
+### The PostGIS container
+
+For querying the IUCN data held in the PostGIS database we use a seperate container, based on the standard PostGIS image.
+
+```shark-build:postgis
+((from python:3.12-s    lim)
+ (run (network host) (shell "apt-get update -qqy && apt-get -y install libpq-dev gcc git && rm -rf /var/lib/apt/lists/* && rm -rf /var/cache/apt/*"))
+ (run (network host) (shell "pip install psycopg2 SQLalchemy geopandas"))
+ (run (network host) (shell "pip install git+https://github.com/quantifyearth/pyshark"))
+ (copy (src "./") (dst "/root/"))
+ (workdir "/root/")
+ (run (shell "chmod 755 *.py"))
+)
 ```
 
 ## Fetching required data
