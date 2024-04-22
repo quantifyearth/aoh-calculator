@@ -1,8 +1,8 @@
-# AoH Calculator
+# AOH Calculator
 
-This repository contains code for making Area of Habitat (AoH) rasters from a mix of data sources. This work is part of the [LIFE biodiversity map](https://www.cambridge.org/engage/coe/article-details/660e6f08418a5379b00a82b2) work at the University of Cambridge; the remainder of the analysis pipeline will be open sourced once the full paper has been accepted for publication, but given the importance of AoH calculations for many different analyses, we've opened this section early to allow others to re-use our efforts rather than spend time on yet another AoH implementation.
+This repository contains code for making Area of Habitat (AOH) rasters from a mix of data sources, following the methodology described in [Brooks et al](https://www.cell.com/trends/ecology-evolution/fulltext/S0169-5347(19)30189-2). This work is part of the [LIFE biodiversity map](https://www.cambridge.org/engage/coe/article-details/660e6f08418a5379b00a82b2) work at the University of Cambridge; the remainder of the analysis pipeline will be open sourced once the full paper has been accepted for publication, but given the importance of AoH calculations for many different analyses, we've opened this section early to allow others to re-use our efforts rather than spend time on yet another AoH implementation.
 
-To generate a set of AoH rasters you will need:
+To generate a set of AOH rasters you will need:
 
 * IUCN range and other metadata (habitat preference, elevation, seasonality)
 * A habitat map raster
@@ -16,4 +16,4 @@ This project makes heavy use of [Yirgacheffe](https://github.com/quantifyearth/y
 
 # Outputs
 
-The results will be a series of AoH rasters, one per species per season. Alongside those results will be a [pyshark](https://github.com/quantifyearth/pyshark) provenance file encoding which data sources were used to make the outputs.
+The results will be a series of AOH rasters, one per species per season. Alongside those results will be a [pyshark](https://github.com/quantifyearth/pyshark) provenance file encoding which data sources were used to make the outputs.
