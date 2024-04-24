@@ -4,6 +4,8 @@ import os
 import geopandas as gpd
 # import pyshark # pylint: disable=W0611
 
+from cleaning import tidy_data
+
 def extract_data_per_species(
     speciesdata_path: str,
     output_directory_path: str,
@@ -19,7 +21,8 @@ def extract_data_per_species(
         "full_habitat_code",
         "geometry"
     ]]
-    for _, row in subset_of_interest.iterrows():
+    for _, raw in subset_of_interest.iterrows():
+        row = tidy_data(raw)
         output_path = os.path.join(output_directory_path, f"{row.id_no}_{row.seasonal}.geojson")
         res = gpd.GeoDataFrame(row.to_frame().transpose(), crs=species_data.crs, geometry="geometry")
         res.to_file(output_path, driver="GeoJSON")

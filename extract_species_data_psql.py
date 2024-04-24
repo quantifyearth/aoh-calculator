@@ -6,6 +6,8 @@ import geopandas as gpd
 import pyproj
 from sqlalchemy import create_engine, text
 
+from cleaning import tidy_data
+
 STATEMENT = """
 WITH habitat_seasons AS (
     SELECT 
@@ -89,7 +91,8 @@ def extract_data_per_species(
     engine = create_engine(DB_CONFIG, echo=False)
     dfi = gpd.read_postgis(text(STATEMENT), con=engine, geom_col="geometry", chunksize=1024)
     for df in dfi:
-        for _, row in df.iterrows():
+        for _, raw in df.iterrows():
+            row = tidy_data(raw)
             output_path = os.path.join(output_directory_path, f"{row.id_no}_{row.seasonal}.geojson")
             res = gpd.GeoDataFrame(row.to_frame().transpose(), crs=src_crs, geometry="geometry")
             res_projected = res.to_crs(target_crs)
