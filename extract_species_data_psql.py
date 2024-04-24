@@ -1,11 +1,10 @@
 import argparse
 import os
 
-import pyshark
+import pyshark # pylint: disable=W0611
 import geopandas as gpd
 import pyproj
-from sqlalchemy import create_engine
-from sqlalchemy import text
+from sqlalchemy import create_engine, text
 
 STATEMENT = """
 WITH habitat_seasons AS (
@@ -86,7 +85,6 @@ def extract_data_per_species(
     # The geometry is in CRS 4326, but the AoH work is done in World_Behrmann, aka Projected CRS: ESRI:54017
     src_crs = pyproj.CRS.from_epsg(4326)
     target_crs = pyproj.CRS.from_string("ESRI:54017")
-    # transformer = pyproj.Transformer(src_crs, target_crs)
 
     engine = create_engine(DB_CONFIG, echo=False)
     dfi = gpd.read_postgis(text(STATEMENT), con=engine, geom_col="geometry", chunksize=1024)
