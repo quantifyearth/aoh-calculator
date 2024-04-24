@@ -73,7 +73,7 @@ WHERE
     AND habitat_id is not null
     AND presence IN (1, 2)
     AND origin IN (1, 2, 6)
-    AND seasonal IN (1, 2, 3)
+    AND seasonal IN (1, 2, 3, 4, 5)
 LIMIT 
     50
 """
