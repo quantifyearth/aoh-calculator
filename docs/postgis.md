@@ -31,7 +31,7 @@ pip install -r requirements.txt
 For querying the IUCN data held in the PostGIS database we use a seperate container, based on the standard PostGIS image.
 
 ```shark-build:postgis
-((from python:3.12-s    lim)
+((from python:3.12-slim)
  (run (network host) (shell "apt-get update -qqy && apt-get -y install libpq-dev gcc git && rm -rf /var/lib/apt/lists/* && rm -rf /var/cache/apt/*"))
  (run (network host) (shell "pip install psycopg2 SQLalchemy geopandas"))
  (run (network host) (shell "pip install git+https://github.com/quantifyearth/pyshark"))
@@ -100,6 +100,10 @@ python3 ./extract_species_data_psql.py --output /data/species-info/
 ```
 
 The reason for doing this primarly one of pipeline optimisation, though it also makes the tasks of debugging and provenance tracing much easier. Most build systems, including the one we use, let you notice when files have updated and only do the work required based on that update. If we have many thousands of species on the redlise and only a few update, if we base our calculation on a single file with all species in, we'll have to calculate all thousands of results. But with this step added in, we will re-generate the per species per season GeoJSON files, which is cheap, but then we can spot that most of them haven't changed and we don't need to then calculate the rasters for those ones in the next stage.
+
+```shark-publish
+/data/species-info/
+```
 
 
 ### Calculate AoH
