@@ -22,5 +22,6 @@ COPY ./ /root/
 WORKDIR /root/
 
 RUN pylint *.py
+RUN python -m pytest ./tests
 
 RUN chmod 755 *.py
