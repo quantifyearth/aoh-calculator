@@ -35,6 +35,8 @@ unique_seasons AS (
         red_list_category_lookup.code,
         taxons.scientific_name,
         assessment_ranges.seasonal,
+        assessment_ranges.presence,
+        assessment_ranges.origin,
         habitat_seasons.habitat_id,
         habitat_lookup.code AS habitat_code,
         STRING_AGG(habitat_lookup.code, '|') OVER (PARTITION BY taxons.scientific_name, habitat_seasons.seasonal) AS full_habitat_code,
@@ -56,7 +58,10 @@ unique_seasons AS (
 )
 SELECT 
     id_no,
+    code,
     seasonal,
+    presence,
+    origin,
     COALESCE(elevation_lower, -500.0) as elevation_lower,
     COALESCE(elevation_upper, 9000.0) as elevation_upper,
     full_habitat_code,
@@ -66,6 +71,9 @@ FROM
 WHERE
     rn = 1
     AND habitat_id is not null
+    AND presence IN (1, 2)
+    AND origin IN (1, 2, 6)
+    AND seasonal IN (1, 2, 3)
 LIMIT 
     50
 """
