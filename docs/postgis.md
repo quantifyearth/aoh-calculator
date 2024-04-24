@@ -65,7 +65,7 @@ python3 ./download_zenodo_raster.py --zenodo_id 6904020 --output /data/habitat.t
 For the corresponding crosswalk table we can use the one already defined:
 
 ```shark-run:aohbuilder
-git clone https://github.com/prioritizr/aoh.git /data/prioritizr-aoh
+git clone https://github.com/prioritizr/aoh.git /data/prioritizr-aoh/
 cd /data/prioritizr-aoh/
 git checkout 34ae0912028581d6cf3d2b4e1fd68f81bc095f18
 ```
