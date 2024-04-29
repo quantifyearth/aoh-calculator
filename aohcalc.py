@@ -3,11 +3,14 @@ import os
 import sys
 from typing import Dict, List
 
+from osgeo import gdal
+gdal.UseExceptions()
+
 import pyshark # pylint: disable=W0611
 import numpy as np
 import pandas as pd
 from geopandas import gpd
-from yirgacheffe.layers import RasterLayer, VectorLayer
+from yirgacheffe.layers import RasterLayer, VectorLayer, ConstantLayer
 from alive_progress import alive_bar
 
 def load_crosswalk_table(table_file_name: str) -> Dict[str,int]:
@@ -36,7 +39,8 @@ def crosswalk_habitats(crosswalk_table: Dict[str, int], raw_habitats: List) -> L
 
 def aohcalc(
     habitat_path: str,
-    elevation_path: str,
+    min_elevation_path: str,
+    max_elevation_path: str,
     crosswalk_path: str,
     species_data_path: str,
     output_directory_path: str,
@@ -60,19 +64,17 @@ def aohcalc(
 
     species_id = filtered_species_info.id_no.values[0]
     seasonality = filtered_species_info.seasonal.values[0]
-    if len(habitat_list) == 0:
-        print(f"No habitat for {species_id} {seasonality}")
-        return
 
     habitat_map = RasterLayer.layer_from_file(habitat_path)
-    elevation_map = RasterLayer.layer_from_file(elevation_path)
+    min_elevation_map = RasterLayer.layer_from_file(min_elevation_path)
+    max_elevation_map = RasterLayer.layer_from_file(max_elevation_path)
     range_map = VectorLayer.layer_from_file_like(
         species_data_path,
-        f'id_no = {species_id} AND seasonal = {seasonality}',
+        None,
         habitat_map
     )
 
-    layers = [habitat_map, elevation_map, range_map]
+    layers = [habitat_map, min_elevation_map, max_elevation_map, range_map]
     intersection = RasterLayer.find_intersection(layers)
     for layer in layers:
         layer.set_window_for_intersection(intersection)
@@ -85,17 +87,20 @@ def aohcalc(
         nodata=2,
         nbits=2
     )
-    # b = result._dataset.GetRasterBand(1)
-    # b.SetMetadataItem('NBITS', '2', 'IMAGE_STRUCTURE')
+    b = result._dataset.GetRasterBand(1)
+    b.SetMetadataItem('NBITS', '2', 'IMAGE_STRUCTURE')
 
-    try:
+    if habitat_list:
         filtered_habtitat = habitat_map.numpy_apply(lambda chunk: np.isin(chunk, habitat_list))
-    except ValueError:
-        print(habitat_list)
+        if filtered_habtitat.sum() == 0:
+            filtered_habtitat = ConstantLayer(1.0)
+    else:
+        filtered_habtitat = ConstantLayer(1.0)
+
+    filtered_elevation = min_elevation_map.numpy_apply(lambda chunk: chunk <= elevation_upper) * max_elevation_map.numpy_apply(lambda chunk: chunk >= elevation_lower)
+    if filtered_elevation.sum() == 0:
         assert False
-    filtered_elevation = elevation_map.numpy_apply(
-        lambda chunk: np.logical_and(chunk >= elevation_lower, chunk <= elevation_upper)
-    )
+        filtered_elevation = ConstantLayer(1.0)
 
     calc = filtered_habtitat * filtered_elevation * range_map
     calc = calc + (range_map.numpy_apply(lambda chunk: (1 - chunk)) * 2)
@@ -112,11 +117,18 @@ def main() -> None:
         dest="habitat_path"
     )
     parser.add_argument(
-        '--elevation',
+        '--elevation-min',
         type=str,
-        help="elevation raster",
+        help="min elevation raster",
         required=True,
-        dest="elevation_path",
+        dest="min_elevation_path",
+    )
+    parser.add_argument(
+        '--elevation-min',
+        type=str,
+        help="max elevation raster",
+        required=True,
+        dest="max_elevation_path",
     )
     parser.add_argument(
         '--crosswalk',
@@ -143,7 +155,8 @@ def main() -> None:
 
     aohcalc(
         args.habitat_path,
-        args.elevation_path,
+        args.min_elevation_path,
+        args.max_elevation_path,
         args.crosswalk_path,
         args.species_data_path,
         args.output_path

@@ -34,7 +34,7 @@ Both these maps must be at the same pixel spacing and projection, and the output
 
 Habitat maps store habitat types in int types typically, the IUCN range data for species are of the form 'x.y' or 'x.y.z', and so you will need to also get a crosswalk table that maps between the IUCN ranges for the species and the particular habitat map you are using.
 
-Here we present the steps required to fetch the [Lumbierres](https://zenodo.org/records/6904020) base maps.
+Here we present the steps required to fetch the [Lumbierres](https://zenodo.org/records/6904020) base maps, as recommended by the IUCN working group for generating the AoH basemaps for Terrestial species in STAR.
 
 ### Fetching the habitat map
 
@@ -52,12 +52,25 @@ cd /data/prioritizr-aoh/
 git checkout 34ae0912028581d6cf3d2b4e1fd68f81bc095f18
 ```
 
+The habitat map by Lumbierres et al is at 100m resolution in World Berhman projection, and for IUCN AoH maps we use Molleide at 1KM resolution, so we use GDAL to do the resampling for this:
+
+```shark-run:aohbuilder
+gdalwarp -t_srs ESRI:54009 -tr 1000 -1000 -r nearest -co COMPRESS=LZW  /data/habitat.tif /data/habitat-1k.tif
+```
+
 ### Fetching the elevation map
 
 To assist with provenance, we download the data from the Zenodo ID.
 
 ```shark-run:aohbuilder
 python3 ./download_zenodo_raster.py --zenodo_id 5719984 --output /data/elevation.tif
+```
+
+Similarly to the habitat map we need to resample to 1km, however rather than picking the mean elevation, we select both the min and max elevation for each pixel, and then check whether the species is in that range when we calculate AoH.
+
+```shark-run:aohbuilder
+gdalwarp -t_srs ESRI:54009 -tr 1000 -1000 -r min -co COMPRESS=LZW  /data/elevation.tif /data/elevation-min-1k.tif
+gdalwarp -t_srs ESRI:54009 -tr 1000 -1000 -r max -co COMPRESS=LZW  /data/elevation.tif /data/elevation-max-1k.tif
 ```
 
 ### Fetching the species ranges
@@ -88,8 +101,9 @@ The reason for doing this primarly one of pipeline optimisation, though it also 
 This step generates a single AoH raster for a single one of the above GeoJSON files.
 
 ```shark-run:aohbuilder
-python3 ./aohcalc.py --habitat /data/habitat.tif \
-                     --elevation /data/elevation.tif \
+python3 ./aohcalc.py --habitat /data/habitat-1k.tif \
+                     --elevation-min /data/elevation-min-1k.tif \
+                     --elevation-max /data/elevation-max-1k.tif \
                      --crosswalk /data/prioritizr-aoh/data-raw/crosswalk-lumb-cgls-data.csv \
                      --speciesdata /data/species-info/* \
                      --output /data/aohs/
