@@ -97,11 +97,15 @@ Rather than calculate from a single main input source of IUCN data (which no mat
 
 ```shark-run:aohbuilder
 python3 ./extract_data_per_species.py --speciesdata /data/test_species_hab_elev.geojson \
-                                      --projection "ESRI:54009"
+                                      --projection "ESRI:54009" \
                                       --output /data/species-info/
 ```
 
 The reason for doing this primarly one of pipeline optimisation, though it also makes the tasks of debugging and provenance tracing much easier. Most build systems, including the one we use, let you notice when files have updated and only do the work required based on that update. If we have many thousands of species on the redlise and only a few update, if we base our calculation on a single file with all species in, we'll have to calculate all thousands of results. But with this step added in, we will re-generate the per species per season GeoJSON files, which is cheap, but then we can spot that most of them haven't changed and we don't need to then calculate the rasters for those ones in the next stage.
+
+```shark-publish
+/data/species-info/
+```
 
 ### Calculate AoH
 

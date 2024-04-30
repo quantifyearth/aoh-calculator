@@ -29,11 +29,11 @@ def extract_data_per_species(
     for _, raw in subset_of_interest.iterrows():
         row = tidy_data(raw)
         if target_projection:
-            transformer = Transformer.from_crs(CRS("ESRI:54017"), CRS(target_projection))
+            transformer = Transformer.from_crs(species_data.crs, CRS(target_projection))
             new_geom = transform(transformer.transform, row.geometry)
             row.geometry = new_geom
         output_path = os.path.join(output_directory_path, f"{row.id_no}_{row.seasonal}.geojson")
-        res = gpd.GeoDataFrame(row.to_frame().transpose(), crs=species_data.crs, geometry="geometry")
+        res = gpd.GeoDataFrame(row.to_frame().transpose(), crs=CRS(target_projection), geometry="geometry")
         res.to_file(output_path, driver="GeoJSON")
 
 def main() -> None:
