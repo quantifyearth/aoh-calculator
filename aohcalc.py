@@ -3,15 +3,16 @@ import os
 import sys
 from typing import Dict, List
 
-from osgeo import gdal
-gdal.UseExceptions()
 
-import pyshark # pylint: disable=W0611
+# import pyshark # pylint: disable=W0611
 import numpy as np
 import pandas as pd
 from geopandas import gpd
 from yirgacheffe.layers import RasterLayer, VectorLayer, ConstantLayer
 from alive_progress import alive_bar
+from osgeo import gdal
+gdal.UseExceptions()
+
 
 def load_crosswalk_table(table_file_name: str) -> Dict[str,int]:
     rawdata = pd.read_csv(table_file_name)
@@ -87,18 +88,20 @@ def aohcalc(
         nodata=2,
         nbits=2
     )
-    b = result._dataset.GetRasterBand(1)
+    b = result._dataset.GetRasterBand(1) # pylint:disable=W0212
     b.SetMetadataItem('NBITS', '2', 'IMAGE_STRUCTURE')
 
     if habitat_list:
         filtered_habtitat = habitat_map.numpy_apply(lambda chunk: np.isin(chunk, habitat_list))
-        if filtered_habtitat.sum() == 0:
+        if (filtered_habtitat * range_map).sum() == 0:
             filtered_habtitat = ConstantLayer(1.0)
     else:
         filtered_habtitat = ConstantLayer(1.0)
 
-    filtered_elevation = min_elevation_map.numpy_apply(lambda chunk: chunk <= elevation_upper) * max_elevation_map.numpy_apply(lambda chunk: chunk >= elevation_lower)
-    if filtered_elevation.sum() == 0:
+    filtered_elevation = (min_elevation_map.numpy_apply(lambda chunk: chunk <= elevation_upper) *
+        max_elevation_map.numpy_apply(lambda chunk: chunk >= elevation_lower))
+    if (filtered_elevation * range_map).sum() == 0:
+        print(f"elev {elevation_lower} {elevation_upper} {min_elevation_map.sum()} {max_elevation_map.sum()}")
         assert False
         filtered_elevation = ConstantLayer(1.0)
 
@@ -124,7 +127,7 @@ def main() -> None:
         dest="min_elevation_path",
     )
     parser.add_argument(
-        '--elevation-min',
+        '--elevation-max',
         type=str,
         help="max elevation raster",
         required=True,

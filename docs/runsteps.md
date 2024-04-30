@@ -11,8 +11,14 @@ docker build . -tag aohbuilder
 For use with the [shark pipeline](https://github.com/quantifyearth/shark), we need this block to trigger a build currently:
 
 ```shark-build:aohbuilder
-((from carboncredits/aohbuilder)
- (run (shell "echo 'Something for the log!'")))
+((from aohbuilder1)
+ (copy (src "./") (dst "/root/"  ))
+ (workdir "/root/")
+)
+```
+
+```shark-build:gdalonly
+((from ghcr.io/osgeo/gdal:ubuntu-small-3.8.1))
 ```
 
 Alternatively you can build your own python virtual env assuming you have everything required. For this you will need at least a GDAL version installed locally, and you may want to update requirements.txt to match the python GDAL bindings to the version you have installed.
@@ -54,8 +60,8 @@ git checkout 34ae0912028581d6cf3d2b4e1fd68f81bc095f18
 
 The habitat map by Lumbierres et al is at 100m resolution in World Berhman projection, and for IUCN AoH maps we use Molleide at 1KM resolution, so we use GDAL to do the resampling for this:
 
-```shark-run:aohbuilder
-gdalwarp -t_srs ESRI:54009 -tr 1000 -1000 -r nearest -co COMPRESS=LZW  /data/habitat.tif /data/habitat-1k.tif
+```shark-run:gdalonly
+gdalwarp -t_srs ESRI:54009 -tr 1000 -1000 -r nearest -co COMPRESS=LZW -wo NUM_THREADS=40 /data/habitat.tif /data/habitat-1k.tif
 ```
 
 ### Fetching the elevation map
@@ -68,9 +74,9 @@ python3 ./download_zenodo_raster.py --zenodo_id 5719984 --output /data/elevation
 
 Similarly to the habitat map we need to resample to 1km, however rather than picking the mean elevation, we select both the min and max elevation for each pixel, and then check whether the species is in that range when we calculate AoH.
 
-```shark-run:aohbuilder
-gdalwarp -t_srs ESRI:54009 -tr 1000 -1000 -r min -co COMPRESS=LZW  /data/elevation.tif /data/elevation-min-1k.tif
-gdalwarp -t_srs ESRI:54009 -tr 1000 -1000 -r max -co COMPRESS=LZW  /data/elevation.tif /data/elevation-max-1k.tif
+```shark-run:gdalonly
+gdalwarp -t_srs ESRI:54009 -tr 1000 -1000 -r min -co COMPRESS=LZW -wo NUM_THREADS=40 /data/elevation.tif /data/elevation-min-1k.tif
+gdalwarp -t_srs ESRI:54009 -tr 1000 -1000 -r max -co COMPRESS=LZW -wo NUM_THREADS=40 /data/elevation.tif /data/elevation-max-1k.tif
 ```
 
 ### Fetching the species ranges

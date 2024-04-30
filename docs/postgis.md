@@ -14,8 +14,10 @@ docker build . -tag aohbuilder
 For use with the [shark pipeline](https://github.com/quantifyearth/shark), we need this block to trigger a build currently:
 
 ```shark-build:aohbuilder
-((from carboncredits/aohbuilder)
- (run (shell "echo 'Something for the log!'")))
+((from carboncredits/aohbuilder1)
+ (copy (src "./") (dst "/root/"))
+ (workdir "/root/")
+)
 ```
 
 Alternatively you can build your own python virtual env assuming you have everything required. For this you will need at least a GDAL version installed locally, and you may want to update requirements.txt to match the python GDAL bindings to the version you have installed.
