@@ -91,6 +91,7 @@ Rather than calculate from a single main input source of IUCN data (which no mat
 
 ```shark-run:aohbuilder
 python3 ./extract_data_per_species.py --speciesdata /data/test_species_hab_elev.geojson \
+                                      --projection "ESRI:54009"
                                       --output /data/species-info/
 ```
 
