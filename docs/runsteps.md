@@ -12,9 +12,13 @@ For use with the [shark pipeline](https://github.com/quantifyearth/shark), we ne
 
 ```shark-build:aohbuilder
 ((from aohbuilder1)
- (copy (src "./") (dst "/root/"  ))
+ (copy (src "./") (dst "/root/"))
  (workdir "/root/")
 )
+```
+
+```shark-build:canned
+((from aohbuilder))
 ```
 
 ```shark-build:gdalonly
@@ -46,13 +50,13 @@ Here we present the steps required to fetch the [Lumbierres](https://zenodo.org/
 
 To assist with provenance, we download the data from the Zenodo ID.
 
-```shark-run:aohbuilder
+```shark-run:canned
 python3 ./download_zenodo_raster.py --zenodo_id 6904020 --output /data/habitat.tif
 ```
 
 For the corresponding crosswalk table we can use the one already defined:
 
-```shark-run:aohbuilder
+```shark-run:canned
 git clone https://github.com/prioritizr/aoh.git /data/prioritizr-aoh/
 cd /data/prioritizr-aoh/
 git checkout 34ae0912028581d6cf3d2b4e1fd68f81bc095f18
@@ -68,7 +72,7 @@ gdalwarp -t_srs ESRI:54009 -tr 1000 -1000 -r nearest -co COMPRESS=LZW -wo NUM_TH
 
 To assist with provenance, we download the data from the Zenodo ID.
 
-```shark-run:aohbuilder
+```shark-run:canned
 python3 ./download_zenodo_raster.py --zenodo_id 5719984 --output /data/elevation.tif
 ```
 

@@ -101,8 +101,6 @@ def aohcalc(
     filtered_elevation = (min_elevation_map.numpy_apply(lambda chunk: chunk <= elevation_upper) *
         max_elevation_map.numpy_apply(lambda chunk: chunk >= elevation_lower))
     if (filtered_elevation * range_map).sum() == 0:
-        print(f"elev {elevation_lower} {elevation_upper} {min_elevation_map.sum()} {max_elevation_map.sum()}")
-        assert False
         filtered_elevation = ConstantLayer(1.0)
 
     calc = filtered_habtitat * filtered_elevation * range_map
