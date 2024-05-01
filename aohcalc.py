@@ -1,4 +1,5 @@
 import argparse
+import math
 import os
 import sys
 from typing import Dict, List
@@ -50,12 +51,16 @@ def aohcalc(
 
     crosswalk_table = load_crosswalk_table(crosswalk_path)
 
-    filtered_species_info = gpd.read_file(species_data_path)
+    try:
+        filtered_species_info = gpd.read_file(species_data_path)
+    except:
+        print(f"Failed to read {species_data_path}", file=sys.stderr)
+        sys.exit(1)
     assert filtered_species_info.shape[0] == 1
 
     try:
-        elevation_lower = int(filtered_species_info.elevation_lower.values[0])
-        elevation_upper = int(filtered_species_info.elevation_upper.values[0])
+        elevation_lower = math.floor(float(filtered_species_info.elevation_lower.values[0]))
+        elevation_upper = math.ceil(float(filtered_species_info.elevation_upper.values[0]))
         raw_habitats = filtered_species_info.full_habitat_code.values[0].split('|')
     except (AttributeError, TypeError):
         print(f"Species data missing one or more needed attributes: {filtered_species_info}", file=sys.stderr)
@@ -75,12 +80,31 @@ def aohcalc(
         habitat_map
     )
 
+    result_filename = os.path.join(output_directory_path, f"{species_id}_{seasonality}.tif")
+
     layers = [habitat_map, min_elevation_map, max_elevation_map, range_map]
-    intersection = RasterLayer.find_intersection(layers)
+    try:
+        intersection = RasterLayer.find_intersection(layers)
+    except ValueError:
+        print(f"Failed to find intersection for {species_data_path}: {range_map.area}")
+        print("Just using range")
+
+        result = RasterLayer.empty_raster_layer_like(
+            range_map,
+            filename=result_filename,
+            compress=True,
+            nodata=2,
+            nbits=2
+        )
+        b = result._dataset.GetRasterBand(1) # pylint:disable=W0212
+        b.SetMetadataItem('NBITS', '2', 'IMAGE_STRUCTURE')
+        with alive_bar(manual=True) as bar:
+            range_map.save(result, callback=bar)
+        sys.exit()
+
     for layer in layers:
         layer.set_window_for_intersection(intersection)
 
-    result_filename = os.path.join(output_directory_path, f"{species_id}_{seasonality}.tif")
     result = RasterLayer.empty_raster_layer_like(
         habitat_map,
         filename=result_filename,
@@ -93,18 +117,19 @@ def aohcalc(
 
     if habitat_list:
         filtered_habtitat = habitat_map.numpy_apply(lambda chunk: np.isin(chunk, habitat_list))
-        if (filtered_habtitat * range_map).sum() == 0:
-            filtered_habtitat = ConstantLayer(1.0)
+        filtered_by_habtitat = range_map * filtered_habtitat
+        if filtered_by_habtitat.sum() == 0:
+            filtered_by_habtitat = range_map
     else:
-        filtered_habtitat = ConstantLayer(1.0)
+        filtered_by_habtitat = range_map
 
     filtered_elevation = (min_elevation_map.numpy_apply(lambda chunk: chunk <= elevation_upper) *
         max_elevation_map.numpy_apply(lambda chunk: chunk >= elevation_lower))
-    if (filtered_elevation * range_map).sum() == 0:
-        filtered_elevation = ConstantLayer(1.0)
+    filtered_by_both = filtered_elevation * filtered_by_habtitat
+    if filtered_by_both.sum() == 0:
+        filtered_by_both = filtered_by_habtitat
 
-    calc = filtered_habtitat * filtered_elevation * range_map
-    calc = calc + (range_map.numpy_apply(lambda chunk: (1 - chunk)) * 2)
+    calc = filtered_by_both + (range_map.numpy_apply(lambda chunk: (1 - chunk)) * 2)
     with alive_bar(manual=True) as bar:
         calc.save(result, callback=bar)
 
