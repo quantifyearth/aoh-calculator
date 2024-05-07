@@ -3,7 +3,6 @@ import os
 from typing import Optional
 
 import geopandas as gpd
-import shapely
 from shapely.ops import transform
 from pyproj import Transformer, CRS
 # import pyshark # pylint: disable=W0611

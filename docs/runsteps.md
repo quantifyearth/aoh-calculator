@@ -11,7 +11,7 @@ docker build . -tag aohbuilder
 For use with the [shark pipeline](https://github.com/quantifyearth/shark), we need this block to trigger a build currently:
 
 ```shark-build:aohbuilder
-((from aohbuilder1)
+((from carboncredits/aohbuilder)
  (copy (src "./") (dst "/root/"))
  (workdir "/root/")
 )
@@ -20,6 +20,8 @@ For use with the [shark pipeline](https://github.com/quantifyearth/shark), we ne
 ```shark-build:canned
 ((from aohbuilder))
 ```
+
+For the projection changesd we use a barebones GDAL container. The reason for this is that these operations are expensive, and we don't want to re-execute them if we update our code.
 
 ```shark-build:gdalonly
 ((from ghcr.io/osgeo/gdal:ubuntu-small-3.8.1))

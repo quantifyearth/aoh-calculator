@@ -1,7 +1,8 @@
 import argparse
 import os
+from typing import Optional
 
-import pyshark # pylint: disable=W0611
+# import pyshark # pylint: disable=W0611
 import geopandas as gpd
 import pyproj
 from sqlalchemy import create_engine, text
@@ -34,6 +35,7 @@ unique_seasons AS (
         assessments.sis_taxon_id as id_no,
         red_list_category_lookup.code,
         taxons.scientific_name,
+        taxons.class_name,
         assessment_ranges.seasonal,
         assessment_ranges.presence,
         assessment_ranges.origin,
@@ -70,12 +72,11 @@ FROM
     unique_seasons
 WHERE
     rn = 1
+    AND class_name = 'AVES'
     AND habitat_id is not null
     AND presence IN (1, 2)
     AND origin IN (1, 2, 6)
     AND seasonal IN (1, 2, 3, 4, 5)
-LIMIT 
-    50
 """
 
 DB_HOST = os.getenv("DB_HOST")
@@ -89,12 +90,13 @@ DB_CONFIG = (
 
 def extract_data_per_species(
     output_directory_path: str,
+    target_projection: Optional[str],
 ) -> None:
     os.makedirs(output_directory_path, exist_ok=True)
 
     # The geometry is in CRS 4326, but the AoH work is done in World_Behrmann, aka Projected CRS: ESRI:54017
     src_crs = pyproj.CRS.from_epsg(4326)
-    target_crs = pyproj.CRS.from_string("ESRI:54017")
+    target_crs = pyproj.CRS.from_string(target_projection)
 
     engine = create_engine(DB_CONFIG, echo=False)
     dfi = gpd.read_postgis(text(STATEMENT), con=engine, geom_col="geometry", chunksize=1024)
@@ -115,10 +117,19 @@ def main() -> None:
         required=True,
         dest='output_directory_path',
     )
+    parser.add_argument(
+        '--projection',
+        type=str,
+        help="Target projection",
+        required=False,
+        dest="target_projection",
+        default="ESRI:54017"
+    )
     args = parser.parse_args()
 
     extract_data_per_species(
-        args.output_directory_path
+        args.output_directory_path,
+        args.target_projection
     )
 
 if __name__ == "__main__":
