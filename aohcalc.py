@@ -51,6 +51,7 @@ def aohcalc(
 
     crosswalk_table = load_crosswalk_table(crosswalk_path)
 
+    os.environ["OGR_GEOJSON_MAX_OBJ_SIZE"] = "0"
     try:
         filtered_species_info = gpd.read_file(species_data_path)
     except:
