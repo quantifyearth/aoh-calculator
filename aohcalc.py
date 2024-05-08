@@ -54,7 +54,7 @@ def aohcalc(
     os.environ["OGR_GEOJSON_MAX_OBJ_SIZE"] = "0"
     try:
         filtered_species_info = gpd.read_file(species_data_path)
-    except:
+    except: # pylint:disable=W0702
         print(f"Failed to read {species_data_path}", file=sys.stderr)
         sys.exit(1)
     assert filtered_species_info.shape[0] == 1
