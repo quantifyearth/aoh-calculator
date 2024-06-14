@@ -1,11 +1,11 @@
-# How to run the pipeline
+# How to run the pipeline for LIFE
 
+## Build the environment
 
-## Building the environment
 
 ### The geospatial compute container
 
-The dockerfile that comes with the repo should be used to run the compute parts of the pipeline.
+The dockerfile that comes with the repo should be used to run the pipeline.
 
 ```
 docker build . -tag aohbuilder
@@ -14,7 +14,7 @@ docker build . -tag aohbuilder
 For use with the [shark pipeline](https://github.com/quantifyearth/shark), we need this block to trigger a build currently:
 
 ```shark-build:aohbuilder
-((from aohbuilder1)
+((from carboncredits/aohbuilder)
  (copy (src "./") (dst "/root/"))
  (workdir "/root/")
 )
@@ -53,25 +53,34 @@ For querying the IUCN data held in the PostGIS database we use a seperate contai
 )
 ```
 
-## Fetching required data
+## Fetching the required data
 
 To calculate the AoH we need various basemaps:
 
-* A habitat map, which contains the habitat per pixel
-* An elevation map, which has the height per pixel in meters
+* Habitat maps for four scenarios:
+    * Current day, in both L1 and L2 IUCN habitat classification
+    * Potential Natural Vegetation (PNV) showing the habitats predicted without human intevention
+    * Restore scenario - a map derived from the PNV and current maps showing certain lands restored to their pre-human
+    * Conserve scenario - a map derived form current indicating the impact of placement of arable lands
+* The Digital Elevation Map (DEM) which has the height per pixel in meters
 
-Both these maps must be at the same pixel spacing and projection, and the output AoH maps will be at that same pixel resolution and projection.
+All these maps must be at the same pixel spacing and projection, and the output AoH maps will be at that same pixel resolution and projection.
 
 Habitat maps store habitat types in int types typically, the IUCN range data for species are of the form 'x.y' or 'x.y.z', and so you will need to also get a crosswalk table that maps between the IUCN ranges for the species and the particular habitat map you are using.
 
-Here we present the steps required to fetch the [Lumbierres](https://zenodo.org/records/6904020) base maps.
+### Fetching the habitat maps
 
-### Fetching the habitat map
+LIFE uses the work of Jung et al to get both the [current day habitat map](https://zenodo.org/records/4058819) and the [PNV habitat map](https://zenodo.org/records/4038749).
 
 To assist with provenance, we download the data from the Zenodo ID.
 
 ```shark-run:canned
-python3 ./download_zenodo_raster.py --zenodo_id 6904020 --output /data/habitat.tif
+python3 ./download_zenodo_raster.py --zenodo_id 4038749 \
+                                    --filename pnv_lvl1_004.zip \
+                                    --extract --output /data/habitat/pnv_raw.tif
+python3 ./download_zenodo_raster.py --zenodo_id 4058819 \
+                                    --filename iucn_habitatclassification_composite_lvl2_ver004.zip \
+                                    --extract --output /data/habitat/jung_l2_raw.tif
 ```
 
 For the corresponding crosswalk table we can use the one already defined:
@@ -82,11 +91,50 @@ cd /data/prioritizr-aoh/
 git checkout 34ae0912028581d6cf3d2b4e1fd68f81bc095f18
 ```
 
-The habitat map by Lumbierres et al is at 100m resolution in World Berhman projection, and for IUCN AoH maps we use Molleide at 1KM resolution, so we use GDAL to do the resampling for this:
+The PNV map is only classified at Level 1 of the IUCN habitat codes, and so to match this non-artificial habitats in the L2 map are converted, as per Eyres et al:
+
+| The current layer maps IUCN level 1 and 2 habitats, but habitats in the PNV layer are mapped only at IUCN level 1, so to estimate species’ proportion of original AOH now remaining we could only use natural habitats mapped at level 1 and artificial habitats at level 2.
+
+```shark-run:canned
+python3 ./LIFE/make_current_map.py --jung /data/habitat/jung_l2_raw.tif \
+                                   --crosswalk /data/prioritizr-aoh/aoh/data-raw/crosswalk-jung-lvl2-data.csv \
+                                   --output /data/habitat/current_raw.tif
+```
+
+The habitat map by Jung et al is at 100m resolution in World Berhman projection, and for IUCN compatible AoH maps we use Molleide at 1KM resolution, so we use GDAL to do the resampling for this:
 
 ```shark-run:gdalonly
-gdalwarp -t_srs ESRI:54009 -tr 1000 -1000 -r nearest -co COMPRESS=LZW -wo NUM_THREADS=40 /data/habitat.tif /data/habitat-1k.tif
+gdalwarp -t_srs ESRI:54009 -tr 1000 -1000 -r nearest -co COMPRESS=LZW -wo NUM_THREADS=40 /data/habitat/pnv_raw.tif /data/habitat/pnv.tif
+gdalwarp -t_srs ESRI:54009 -tr 1000 -1000 -r nearest -co COMPRESS=LZW -wo NUM_THREADS=40 /data/habitat/current_raw.tif /data/habitat/current.tif
 ```
+
+
+
+### Generating additional habitat maps
+
+From [Eyres et al]():
+
+For the restoration map:
+
+| In the restoration scenario all areas classified as arable or pasture were restored to their PNV.
+
+```shark-run:canned
+python3 ./LIFE/make_restore_map.py --pnv /data/habitat/pnv.tif \
+                                   --current /data/habitat/current.tif \
+                                   --crosswalk /data/prioritizr-aoh/aoh/data-raw/crosswalk-jung-lvl2-data.csv \
+                                   --output /data/habitat/restore.tif
+```
+
+For the conservation map:
+
+| In the conversion scenario all habitats currently mapped as natural or pasture were converted to arable land.
+
+```shark-run:canned
+python3 ./LIFE/make_arable_map.py --current /data/habitat/current.tif \
+                                  --crosswalk /data/prioritizr-aoh/aoh/data-raw/crosswalk-jung-lvl2-data.csv \
+                                  --output /data/habitat/arable.tif
+```
+
 
 ### Fetching the elevation map
 
@@ -105,7 +153,12 @@ gdalwarp -t_srs ESRI:54009 -tr 1000 -1000 -r max -co COMPRESS=LZW -wo NUM_THREAD
 
 ### Fetching the species ranges
 
-In this workflow we assume you have a PostGIS database set up with a clone of the IUCN redlist API data already in it, so there is nothing to do here.
+This sections needs to be improved! This is some canned test data from the IUCN dataset. We do have a download pipeline as part of LIFE, but it's not been merged into here yet as we're chatting to the IUCN about the best way to achieve this.
+
+```shark-run:aohbuilder
+curl -o /data/test_species_hab_elev.geojson https://digitalflapjack.com/data/test_species_hab_elev.geojson
+```
+
 
 ## Calculating AoH
 
@@ -128,24 +181,4 @@ The reason for doing this primarly one of pipeline optimisation, though it also 
 
 ```shark-publish
 /data/species-info/
-```
-
-
-### Calculate AoH
-
-This step generates a single AoH raster for a single one of the above GeoJSON files.
-
-```shark-run:aohbuilder
-python3 ./aohcalc.py --habitat /data/habitat-1k.tif \
-                     --elevation-min /data/elevation-min-1k.tif \
-                     --elevation-max /data/elevation-max-1k.tif \
-                     --crosswalk /data/prioritizr-aoh/data-raw/crosswalk-lumb-cgls-data.csv \
-                     --speciesdata /data/species-info/* \
-                     --output /data/aohs/
-```
-
-The results you then want will all be in:
-
-```shark-publish
-/data/aohs/
 ```

@@ -11,7 +11,7 @@ from cleaning import tidy_data
 
 STATEMENT = """
 WITH habitat_seasons AS (
-    SELECT 
+	SELECT 
         assessment_habitats.assessment_id, 
         assessment_habitats.habitat_id,
         CASE
@@ -30,8 +30,8 @@ WITH habitat_seasons AS (
         assessments.latest = 'true'
 ),
 unique_seasons AS (
-    SELECT DISTINCT ON (taxons.scientific_name, habitat_seasons.seasonal)
-        assessments.id AS assessment_id,
+  	SELECT DISTINCT ON (taxons.scientific_name, habitat_seasons.seasonal)
+  		assessments.id AS assessment_id,
         assessments.sis_taxon_id as id_no,
         red_list_category_lookup.code,
         taxons.scientific_name,
@@ -41,12 +41,12 @@ unique_seasons AS (
         assessment_ranges.origin,
         habitat_seasons.habitat_id,
         habitat_lookup.code AS habitat_code,
-        STRING_AGG(habitat_lookup.code, '|') OVER (PARTITION BY taxons.scientific_name, habitat_seasons.seasonal) AS full_habitat_code,
+        STRING_AGG(habitat_lookup.code, '|') OVER (PARTITION BY taxons.scientific_name, habitat_seasons.seasonal ORDER BY assessment_ranges.id) AS full_habitat_code,
+  		(ST_COLLECT(assessment_ranges.geom::geometry) OVER (PARTITION BY taxons.scientific_name, habitat_seasons.seasonal ORDER BY assessment_ranges.id))::geography AS geometry,
         habitat_lookup.description,
         (assessment_supplementary_infos.supplementary_fields->>'ElevationLower.limit')::numeric AS elevation_lower,
         (assessment_supplementary_infos.supplementary_fields->>'ElevationUpper.limit')::numeric AS elevation_upper,
-        assessment_ranges.geom,
-        ROW_NUMBER() OVER (PARTITION BY taxons.scientific_name, habitat_seasons.seasonal ORDER BY assessments.id) AS rn
+        ROW_NUMBER() OVER (PARTITION BY taxons.scientific_name, habitat_seasons.seasonal ORDER BY assessments.id, assessment_ranges.id) AS rn
     FROM 
         assessments
         LEFT JOIN taxons ON taxons.id = assessments.taxon_id
@@ -57,26 +57,22 @@ unique_seasons AS (
         LEFT JOIN red_list_category_lookup ON red_list_category_lookup.id = assessments.red_list_category_id
     WHERE 
         assessments.latest = 'true'
+  		AND class_name IN ('AVES')
+        AND assessment_ranges.presence IN (1, 2)
+        AND assessment_ranges.origin IN (1, 2, 6)
+        AND assessment_ranges.seasonal IN (1, 2, 3, 4, 5)
 )
 SELECT 
-    id_no,
-    code,
+	id_no,
     seasonal,
-    presence,
-    origin,
     COALESCE(elevation_lower, -500.0) as elevation_lower,
     COALESCE(elevation_upper, 9000.0) as elevation_upper,
     full_habitat_code,
-    geom as geometry
+    geometry
 FROM 
     unique_seasons
 WHERE
-    rn = 1
-    AND class_name = 'AVES'
-    AND habitat_id is not null
-    AND presence IN (1, 2)
-    AND origin IN (1, 2, 6)
-    AND seasonal IN (1, 2, 3, 4, 5)
+		rn = 1
 """
 
 DB_HOST = os.getenv("DB_HOST")

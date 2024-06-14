@@ -1,4 +1,4 @@
-# How to run the pipeline
+# How to run the pipeline for STAR
 
 ## Building the environment
 
@@ -40,7 +40,7 @@ pip install -r requirements.txt
 To calculate the AoH we need various basemaps:
 
 * A habitat map, which contains the habitat per pixel
-* An elevation map, which has the height per pixel in meters
+* The Digital Elevation Map (DEM) which has the height per pixel in meters
 
 Both these maps must be at the same pixel spacing and projection, and the output AoH maps will be at that same pixel resolution and projection.
 
@@ -53,7 +53,7 @@ Here we present the steps required to fetch the [Lumbierres](https://zenodo.org/
 To assist with provenance, we download the data from the Zenodo ID.
 
 ```shark-run:canned
-python3 ./download_zenodo_raster.py --zenodo_id 6904020 --output /data/habitat.tif
+python3 ./download_zenodo_raster.py --zenodo_id 6904020 --filename lumbierres-10-5281_zenodo-5146073-v2.tif --output /data/habitat.tif
 ```
 
 For the corresponding crosswalk table we can use the one already defined:
@@ -75,7 +75,7 @@ gdalwarp -t_srs ESRI:54009 -tr 1000 -1000 -r nearest -co COMPRESS=LZW -wo NUM_TH
 To assist with provenance, we download the data from the Zenodo ID.
 
 ```shark-run:canned
-python3 ./download_zenodo_raster.py --zenodo_id 5719984 --output /data/elevation.tif
+python3 ./download_zenodo_raster.py --zenodo_id 5719984 --filename dem-100m-esri54017.tif --output /data/elevation.tif
 ```
 
 Similarly to the habitat map we need to resample to 1km, however rather than picking the mean elevation, we select both the min and max elevation for each pixel, and then check whether the species is in that range when we calculate AoH.
@@ -102,9 +102,9 @@ Once all the data has been collected, we can now calclate the AoH maps.
 Rather than calculate from a single main input source of IUCN data (which no matter what method is used - download from the website, API queries, etc. - tends to result in a single blob), we first split out the data into a single GeoJSON file per species per season:
 
 ```shark-run:aohbuilder
-python3 ./extract_data_per_species.py --speciesdata /data/test_species_hab_elev.geojson \
-                                      --projection "ESRI:54009" \
-                                      --output /data/species-info/
+python3 ./STAR/extract_data_per_species.py --speciesdata /data/test_species_hab_elev.geojson \
+                                           --projection "ESRI:54009" \
+                                           --output /data/species-info/
 ```
 
 The reason for doing this primarly one of pipeline optimisation, though it also makes the tasks of debugging and provenance tracing much easier. Most build systems, including the one we use, let you notice when files have updated and only do the work required based on that update. If we have many thousands of species on the redlise and only a few update, if we base our calculation on a single file with all species in, we'll have to calculate all thousands of results. But with this step added in, we will re-generate the per species per season GeoJSON files, which is cheap, but then we can spot that most of them haven't changed and we don't need to then calculate the rasters for those ones in the next stage.
