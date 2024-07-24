@@ -14,14 +14,21 @@ docker build . -tag aohbuilder
 For use with the [shark pipeline](https://github.com/quantifyearth/shark), we need this block to trigger a build currently:
 
 ```shark-build:aohbuilder
-((from aohbuilder1)
+((from ghcr.io/osgeo/gdal:ubuntu-small-3.8.5)
+(run (network host) (shell "apt-get update -qqy && apt-get -y install python3-pip libpq-dev git && rm -rf /var/lib/apt/lists/* && rm -rf /var/cache/apt/*"))
+ (run (network host) (shell "pip install --upgrade pip"))
+ (run (network host) (shell "pip install 'numpy<2'"))
+ (run (network host) (shell "pip install gdal[numpy]==3.8.5"))
  (copy (src "./") (dst "/root/"))
  (workdir "/root/")
+ (run (network host) (shell "pip install --no-cache-dir -r requirements.txt"))
 )
 ```
 
-```shark-build:canned
-((from aohbuilder))
+For the primary data sources we fetch them directly from Zenodo/GitHub to allow for obvious provenance.
+
+```shark-build:zenodo
+((from carboncredits/zenodo-download:latest))
 ```
 
 For the projection changesd we use a barebones GDAL container. The reason for this is that these operations are expensive, and we don't want to re-execute them if we update our code.
@@ -70,29 +77,34 @@ Here we present the steps required to fetch the [Lumbierres](https://zenodo.org/
 
 To assist with provenance, we download the data from the Zenodo ID.
 
-```shark-run:aohbuilder
+```shark-run:zenodo
 python3 ./download_zenodo_raster.py --zenodo_id 6904020 --filename lumbierres-10-5281_zenodo-5146073-v2.tif --output /data/habitat.tif
 ```
 
 For the corresponding crosswalk table we can use the one already defined:
 
-```shark-run:aohbuilder
+```shark-run:zenodo
 git clone https://github.com/prioritizr/aoh.git /data/prioritizr-aoh/
 cd /data/prioritizr-aoh/
 git checkout 34ae0912028581d6cf3d2b4e1fd68f81bc095f18
 ```
 
-The habitat map by Lumbierres et al is at 100m resolution in World Berhman projection, and for IUCN AoH maps we use Molleide at 1KM resolution, so we use GDAL to do the resampling for this:
+The habitat map by Lumbierres et al is at 100m resolution in World Berhman projection, and for IUCN AoH maps we use Molleide at 1KM resolution. Also, whilst for terrestrial species we use a single habitat map, for other domains we take a map per layer, so this script takes in the original map, splits, reprojects, and rescales it ready for use.
 
-```shark-run:gdalonly
-gdalwarp -t_srs ESRI:54009 -tr 1000 -1000 -r nearest -co COMPRESS=LZW -wo NUM_THREADS=40 /data/habitat.tif /data/habitat-1k.tif
+```shark-run:aohbuilder:
+python3 ./habitat_process.py --habitat /data/habitat.tif \
+                             --crosswalk /data/prioritizr-aoh/data-raw/crosswalk-lumb-cgls-data.csv \
+                             --scale 1000.0 \
+                             --projection "ESRI:54009" \
+                             --output /data/habitat_maps/
 ```
+
 
 ### Fetching the elevation map
 
 To assist with provenance, we download the data from the Zenodo ID.
 
-```shark-run:aohbuilder
+```shark-run:zenodo
 python3 ./download_zenodo_raster.py --zenodo_id 5719984 --filename dem-100m-esri54017.tif --output /data/elevation.tif
 ```
 
@@ -136,7 +148,7 @@ The reason for doing this primarly one of pipeline optimisation, though it also 
 This step generates a single AoH raster for a single one of the above GeoJSON files.
 
 ```shark-run:aohbuilder
-python3 ./aohcalc.py --habitat /data/habitat-1k.tif \
+python3 ./aohcalc.py --habitats /data/habitat_maps/ \
                      --elevation-min /data/elevation-min-1k.tif \
                      --elevation-max /data/elevation-max-1k.tif \
                      --crosswalk /data/prioritizr-aoh/data-raw/crosswalk-lumb-cgls-data.csv \

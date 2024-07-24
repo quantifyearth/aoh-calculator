@@ -16,6 +16,7 @@ from aohcalc import load_crosswalk_table
 def make_single_type_map(
     habitat_path: str,
     pixel_scale: float,
+    target_projection: str,
     output_directory_path: str,
     habitat_value: int | float,
 ) -> None:
@@ -36,7 +37,7 @@ def make_single_type_map(
         tempname = os.path.join(tmpdir, filename)
         gdal.Warp(tempname, filtered_file_name, options=gdal.WarpOptions(
             multithread=True,
-            dstSRS="ESRI:54009",
+            dstSRS=target_projection,
             outputType=gdal.GDT_Float32,
             xRes=pixel_scale,
             yRes=0.0 - pixel_scale,
@@ -49,6 +50,7 @@ def habitat_process(
     habitat_path: str,
     crosswalk_path: Optional[str],
     pixel_scale: float,
+    target_projection: str,
     output_directory_path: str,
     process_count: int
 ) -> None:
@@ -72,7 +74,7 @@ def habitat_process(
 
     with Pool(processes=process_count) as pool:
         pool.map(
-            partial(make_single_type_map, habitat_path, pixel_scale, output_directory_path),
+            partial(make_single_type_map, habitat_path, pixel_scale, target_projection, output_directory_path),
             habitats
         )
 
@@ -100,6 +102,14 @@ def main() -> None:
         help="Output pixel scale value."
     )
     parser.add_argument(
+        '--projection',
+        type=str,
+        help="Target projection",
+        required=False,
+        dest="target_projection",
+        default="ESRI:54017"
+    )
+    parser.add_argument(
         "--output",
         type=str,
         required=True,
@@ -120,6 +130,7 @@ def main() -> None:
         args.habitat_path,
         args.crosswalk_path,
         args.pixel_scale,
+        args.target_projection,
         args.output_path,
         args.processes_count,
     )

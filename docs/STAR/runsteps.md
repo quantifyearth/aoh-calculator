@@ -71,12 +71,13 @@ cd /data/prioritizr-aoh/
 git checkout 34ae0912028581d6cf3d2b4e1fd68f81bc095f18
 ```
 
-The habitat map by Lumbierres et al is at 100m resolution in World Berhman projection, and for IUCN AoH maps we use Molleide at 1KM resolution, so we use GDAL to do the resampling for this:
+The habitat map by Lumbierres et al is at 100m resolution in World Berhman projection, and for IUCN AoH maps we use Molleide at 1KM resolution. Also, whilst for terrestrial species we use a single habitat map, for other domains we take a map per layer, so this script takes in the original map, splits, reprojects, and rescales it ready for use.
 
 ```shark-run:aohbuilder:
 python3 ./habitat_process.py --habitat /data/habitat.tif \
                              --crosswalk /data/prioritizr-aoh/data-raw/crosswalk-lumb-cgls-data.csv \
                              --scale 1000.0 \
+                             --projection "ESRI:54009" \
                              --output /data/habitat_maps/
 ```
 
