@@ -15,7 +15,7 @@ from osgeo import gdal
 gdal.UseExceptions()
 
 
-def load_crosswalk_table(table_file_name: str) -> Dict[str,int]:
+def load_crosswalk_table(table_file_name: str) -> Dict[str,List[int]]:
     rawdata = pd.read_csv(table_file_name)
     result = {}
     for _, row in rawdata.iterrows():
@@ -72,18 +72,19 @@ def aohcalc(
     species_id = filtered_species_info.id_no.values[0]
     seasonality = filtered_species_info.seasonal.values[0]
 
-    habitat_map = RasterLayer.layer_from_file(habitat_path)
+    habitat_maps = [RasterLayer.layer_from_file(os.path.join(habitat_path, f"habitat_{x}.tif")) for x in habitat_list]
+
     min_elevation_map = RasterLayer.layer_from_file(min_elevation_path)
     max_elevation_map = RasterLayer.layer_from_file(max_elevation_path)
     range_map = VectorLayer.layer_from_file_like(
         species_data_path,
         None,
-        habitat_map
+        min_elevation_map
     )
 
     result_filename = os.path.join(output_directory_path, f"{species_id}_{seasonality}.tif")
 
-    layers = [habitat_map, min_elevation_map, max_elevation_map, range_map]
+    layers = habitat_maps + [min_elevation_map, max_elevation_map, range_map]
     try:
         intersection = RasterLayer.find_intersection(layers)
     except ValueError:
@@ -107,9 +108,10 @@ def aohcalc(
         layer.set_window_for_intersection(intersection)
 
     result = RasterLayer.empty_raster_layer_like(
-        habitat_map,
+        min_elevation_map,
         filename=result_filename,
         compress=True,
+        datatype=gdal.GDT_Byte,
         nodata=2,
         nbits=2
     )
@@ -117,8 +119,11 @@ def aohcalc(
     b.SetMetadataItem('NBITS', '2', 'IMAGE_STRUCTURE')
 
     if habitat_list:
-        filtered_habtitat = habitat_map.numpy_apply(lambda chunk: np.isin(chunk, habitat_list))
-        filtered_by_habtitat = range_map * filtered_habtitat
+        combined_habitat = habitat_maps[0]
+        for map in habitat_maps[1:]:
+            combined_habitat = combined_habitat + map
+        combined_habitat = combined_habitat.numpy_apply(lambda c: np.where(c > 1, 1, c))
+        filtered_by_habtitat = range_map * combined_habitat
         if filtered_by_habtitat.sum() == 0:
             filtered_by_habtitat = range_map
     else:
@@ -137,9 +142,9 @@ def aohcalc(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Area of habitat calculator.")
     parser.add_argument(
-        '--habitat',
+        '--habitats',
         type=str,
-        help="habitat raster",
+        help="set of habitat rasters",
         required=True,
         dest="habitat_path"
     )
