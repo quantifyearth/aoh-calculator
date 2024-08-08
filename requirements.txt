@@ -1,14 +1,17 @@
 alive-progress
 numpy<2
 geopandas
-requests
+psutil
 pyproj
+scikit-image
+requests
 zenodo_search
 
 gdal[numpy]
 
+git+https://github.com/quantifyearth/iucn_modlib
 git+https://github.com/quantifyearth/pyshark
-git+https://github.com/quantifyearth/yirgacheffe@bd2e91c773a414f66340ebb8c13044a1b1a6045f
+git+https://github.com/quantifyearth/yirgacheffe@cc89b4d8a0e97c1a11b730cd688a58b680023336
 
 pylint
 mypy

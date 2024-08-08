@@ -71,9 +71,9 @@ def main() -> None:
         with requests.get(url, stream=True, timeout=60) as response:
             if args.extract:
                 try:
-                    zip = zipfile.ZipFile(io.BytesIO(response.content))
-                    members = zip.namelist()
-                    target = zip.extract(members[0], pwd=tempdir)
+                    with zipfile.ZipFile(io.BytesIO(response.content)) as zipf:
+                        members = zipf.namelist()
+                        target = zipf.extract(members[0], path=tempdir)
                 except zipfile.BadZipFile:
                     try:
                         reader = gzip.GzipFile(fileobj=io.BytesIO(response.content))

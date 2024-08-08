@@ -104,13 +104,6 @@ This sections needs to be improved! This is some canned test data from the IUCN 
 curl -o /data/test_species_hab_elev.geojson https://digitalflapjack.com/data/test_species_hab_elev.geojson
 ```
 
-
-```shark-publishe
-/data/elevation-min-1k.tif
-/data/elevation-max-1k.tif
-/data/habitat_maps/
-```
-
 ## Calculating AoH
 
 Once all the data has been collected, we can now calclate the AoH maps.

@@ -55,7 +55,7 @@ def extract_data_per_species(
     os.makedirs(output_directory_path, exist_ok=True)
 
     species_list = pd.read_csv(specieslist_path, index_col=0)
-    batch = TaxonFactories.loadBatchSource(experiment['iucn_batch']) 
+    batch = TaxonFactories.loadBatchSource(iucn_data_batch)
     species_data = gpd.read_file(speciesdata_path)
 
     for species_id in species_list["taxid"]:

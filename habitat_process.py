@@ -1,11 +1,13 @@
 import argparse
 import math
 import os
+import psutil
 import shutil
+import sys
 import tempfile
 from functools import partial
 from multiprocessing import Pool, cpu_count
-from typing import Optional
+from typing import Optional, Set
 
 import numpy as np
 from osgeo import gdal
@@ -13,25 +15,53 @@ from yirgacheffe.layers import RasterLayer  # type: ignore
 
 from aohcalc import load_crosswalk_table
 
+BLOCKSIZE = 512
+
+def enumerate_subset(
+    habitat_path: str,
+    offset: int,
+) -> Set[int]:
+    with RasterLayer.layer_from_file(habitat_path) as habitat_map:
+        blocksize = min(BLOCKSIZE, habitat_map.window.ysize - offset)
+        data = habitat_map.read_array(0, offset, habitat_map.window.xsize, blocksize)
+        values = np.unique(data)
+    return set(values)
+
+def enumerate_terrain_types(
+    habitat_path: str
+) -> Set[int]:
+    with RasterLayer.layer_from_file(habitat_path) as habitat_map:
+        ysize = habitat_map.window.ysize
+
+    blocks = range(0, ysize, BLOCKSIZE)
+
+    with Pool(processes=50) as pool:
+        sets = pool.map(partial(enumerate_subset, habitat_path), blocks)
+
+    superset = set()
+    for s in sets:
+        superset.update(s)
+    return superset
+
 def make_single_type_map(
     habitat_path: str,
     pixel_scale: float,
-    target_projection: str,
+    target_projection: Optional[str],
     output_directory_path: str,
     habitat_value: int | float,
 ) -> None:
-    habitat_map = RasterLayer.layer_from_file(habitat_path)
+    gdal.SetCacheMax(20 * 1024 * 1024 * 1024)
 
     # We could do this via yirgacheffe if it wasn't for the need to
     # both rescale and reproject. So we do the initial filtering
     # in that, but then bounce it to a temporary file for the
     # warping
     with tempfile.TemporaryDirectory() as tmpdir:
-        filtered_file_name = os.path.join(tmpdir, f"filtered_{habitat_value}.tif")
-        calc = habitat_map.numpy_apply(lambda c: c == habitat_value)
-        filtered_map = RasterLayer.empty_raster_layer_like(habitat_map, filename=filtered_file_name)
-        calc.save(filtered_map)
-        filtered_map.close()
+        with RasterLayer.layer_from_file(habitat_path) as habitat_map:
+            filtered_file_name = os.path.join(tmpdir, f"filtered_{habitat_value}.tif")
+            calc = habitat_map.numpy_apply(lambda c: c == habitat_value)
+            with RasterLayer.empty_raster_layer_like(habitat_map, filename=filtered_file_name, datatype=gdal.GDT_Byte) as filtered_map:
+                calc.save(filtered_map)
 
         filename = f"habitat_{habitat_value}.tif"
         tempname = os.path.join(tmpdir, filename)
@@ -41,36 +71,51 @@ def make_single_type_map(
             outputType=gdal.GDT_Float32,
             xRes=pixel_scale,
             yRes=0.0 - pixel_scale,
+            resampleAlg="average",
+            workingType=gdal.GDT_Float32
         ))
 
         shutil.move(tempname, os.path.join(output_directory_path, filename))
 
-
 def habitat_process(
     habitat_path: str,
-    crosswalk_path: Optional[str],
     pixel_scale: float,
-    target_projection: str,
+    target_projection: Optional[str],
     output_directory_path: str,
     process_count: int
 ) -> None:
     os.makedirs(output_directory_path, exist_ok=True)
 
-    habitat_map = RasterLayer.layer_from_file(habitat_path)
+    with RasterLayer.layer_from_file(habitat_path) as habitat_map:
+        # The processing stage uses GDAL warp directly, with no chunking, so we should
+        # take a guess at how much memory we need based on the dimensions of the base map
+        pixels = habitat_map.window.xsize * habitat_map.window.ysize
+        # I really tried not to write this statement and use introspection, but nothing
+        # I tried gave a sensible answer. Normally I'd be more paranoid due to numpy bloat,
+        # but we're calling GDALwarp and passing it filenames, so everything should be done
+        # in the C++ world of GDAL, so I have more confidence that we won't see the usual
+        # 4x plus memory bloat of loading raster data into the python world.
+        match habitat_map.datatype:
+            case gdal.GDT_Byte | gdal.GDT_Int8:
+                pixel_size = 1
+            case gdal.GDT_CInt16 | gdal.GDT_Int16 | gdal.GDT_UInt16:
+                pixel_size = 2
+            case gdal.GDT_CFloat32 | gdal.GDT_CInt32 | gdal.GDT_Float32 | gdal.GDT_Int32:
+                pixel_size = 4
+            case _:
+                pixel_size = 8
+        estimated_memory = pixel_size * pixels
 
-    # Step one, we need to know how many terrains there are. We could get this from the crosswalk
-    # table, but we can also work out the unique values ourselves
-    habitats = set()
-    if crosswalk_path:
-        crosswalk_table = load_crosswalk_table(crosswalk_path)
-        habitats = set(sum(crosswalk_table.values(), []))
-    else:
-        print("Calculating habitat list from habitat map - this may be quite slow.")
-        calc = habitat_map.numpy_apply(lambda c: habitats.update(set(np.unique(c))) or 0)
-        calc.sum()
-        habitat_map.close()
-        del habitat_map
-    print(f"Habitat list: {habitats}")
+        mem_stats = psutil.virtual_memory()
+        max_copies = math.floor((mem_stats.available * 0.5) / estimated_memory)
+        assert max_copies > 0
+        process_count = min(max_copies, process_count)
+        print(f"Estimating we can run {process_count} concurrent tasks")
+
+    # We need to know how many terrains there are. We could get this from the crosswalk
+    # table, but we can also work out the unique values ourselves. In practice this is
+    # worth the effort, otherwise we generate a lot of empty maps potentially.
+    habitats = enumerate_terrain_types(habitat_path)
 
     with Pool(processes=process_count) as pool:
         pool.map(
@@ -88,13 +133,6 @@ def main() -> None:
         dest="habitat_path"
     )
     parser.add_argument(
-        '--crosswalk',
-        type=str,
-        help="habitat crosswalk table path",
-        required=False,
-        dest="crosswalk_path",
-    )
-    parser.add_argument(
         "--scale",
         type=float,
         required=True,
@@ -107,7 +145,7 @@ def main() -> None:
         help="Target projection",
         required=False,
         dest="target_projection",
-        default="ESRI:54017"
+        default=None
     )
     parser.add_argument(
         "--output",
@@ -128,7 +166,6 @@ def main() -> None:
 
     habitat_process(
         args.habitat_path,
-        args.crosswalk_path,
         args.pixel_scale,
         args.target_projection,
         args.output_path,
