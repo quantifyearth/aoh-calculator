@@ -34,7 +34,8 @@ def generate_crosswalk(
     output_filename: str,
 ) -> None:
     output_dir, _ = os.path.split(output_filename)
-    os.makedirs(output_dir, exist_ok=True)
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
 
     res = []
     for iucn_code in IUCN_HABITAT_CODES:

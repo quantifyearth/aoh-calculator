@@ -63,7 +63,7 @@ def make_single_type_map(
             with RasterLayer.empty_raster_layer_like(habitat_map, filename=filtered_file_name, datatype=gdal.GDT_Byte) as filtered_map:
                 calc.save(filtered_map)
 
-        filename = f"habitat_{habitat_value}.tif"
+        filename = f"lcc_{habitat_value}.tif"
         tempname = os.path.join(tmpdir, filename)
         gdal.Warp(tempname, filtered_file_name, options=gdal.WarpOptions(
             multithread=True,

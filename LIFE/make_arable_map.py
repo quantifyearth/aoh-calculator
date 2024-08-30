@@ -27,57 +27,6 @@ def load_crosswalk_table(table_file_name: str) -> Dict[str,int]:
     return result
 
 
-# def make_arable_mapset(
-#     current_mapset_path: str,
-#     crosswalk_path: str,
-#     output_path: str,
-#     show_progress: bool,
-# ) -> None:
-#     os.makedirs(output_path, exist_ok=True)
-
-#     crosswalk = load_crosswalk_table(crosswalk_path)
-#     artificial_codes: List[int] = list(itertools.chain.from_iterable([crosswalk[x] for x in IUCN_CODE_ARTIFICAL]))
-#     arable_code = crosswalk[ARABLE][0]
-
-#     habitat_layers = os.listdir(current_mapset_path)
-#     covertsion_layers = []
-#     arable_layer = None
-#     for layername in habitat_layers:
-#         full_habitat_path = os.path.join(current_mapset_path, layername)
-#         layercode, _ = os.path.splitext(layername)
-#         layercode = int(layercode)
-
-#         if layercode == arable_code:
-#             assert arable_layer is None
-#             arable_layer = full_habitat_path
-#         elif layercode not in artificial_codes:
-#             covertsion_layers.append(full_habitat_path)
-#         else:
-#             target_path = os.path.join(output_path, layername)
-#             shutil.copy(full_habitat_path, target_path)
-
-#     assert arable_layer is not None
-
-#     # finally build up the arable layer
-#     with tempfile.TemporaryDirectory() as tmpdir:
-#         new_arable_layey_path = os.path.join(tmpdir, f"{arable_code}.tif")
-#         current_arable = RasterLayer.layer_from_file(arable_layer)
-#         target_layer = RasterLayer.empty_layer_like_file(current_arable, filename=new_arable_layey_path)
-#         calc = current_arable
-#         for layer_path in covertsion_layers:
-#             raster = RasterLayer.layer_fromfile(layer_path)
-#             # We could naively assume that the two layers have no overlap if it wasn't
-#             # for the fact we rescaled the data, so we can't just add the layers
-#             calc = calc.numpy_apply(
-#                 lambda a, b: np.where(b > 0, 1, a),
-#                 raster
-#             )
-#         calc.save(target_layer)
-#         target_layer.close()
-
-#         shutil.copy(new_arable_layey_path, os.path.join(output_path, f"{arable_code}.tif"))
-
-
 def make_arable_map(
     current_path: str,
     crosswalk_path: str,

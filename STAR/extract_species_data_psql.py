@@ -11,8 +11,8 @@ from cleaning import tidy_data
 
 STATEMENT = """
 WITH habitat_seasons AS (
-	SELECT 
-        assessment_habitats.assessment_id, 
+	SELECT
+        assessment_habitats.assessment_id,
         assessment_habitats.habitat_id,
         CASE
             WHEN (assessment_habitats.supplementary_fields->>'season') ILIKE 'Resident' THEN 1
@@ -22,11 +22,11 @@ WITH habitat_seasons AS (
             WHEN (assessment_habitats.supplementary_fields->>'season') ILIKE '%un%n%' THEN 5 -- capture 'uncertain' and 'unknown'!
             ELSE 1
         END AS seasonal
-    FROM 
+    FROM
         public.assessments
         LEFT JOIN taxons ON taxons.id = assessments.taxon_id
         LEFT JOIN assessment_habitats ON assessment_habitats.assessment_id = assessments.id
-    WHERE 
+    WHERE
         assessments.latest = 'true'
 ),
 unique_seasons AS (
@@ -47,7 +47,7 @@ unique_seasons AS (
         (assessment_supplementary_infos.supplementary_fields->>'ElevationLower.limit')::numeric AS elevation_lower,
         (assessment_supplementary_infos.supplementary_fields->>'ElevationUpper.limit')::numeric AS elevation_upper,
         ROW_NUMBER() OVER (PARTITION BY taxons.scientific_name, habitat_seasons.seasonal ORDER BY assessments.id, assessment_ranges.id) AS rn
-    FROM 
+    FROM
         assessments
         LEFT JOIN taxons ON taxons.id = assessments.taxon_id
         LEFT JOIN assessment_ranges ON assessment_ranges.assessment_id = assessments.id
@@ -55,21 +55,21 @@ unique_seasons AS (
         LEFT JOIN habitat_lookup ON habitat_lookup.id = habitat_seasons.habitat_id
         LEFT JOIN assessment_supplementary_infos ON assessment_supplementary_infos.assessment_id = assessments.id
         LEFT JOIN red_list_category_lookup ON red_list_category_lookup.id = assessments.red_list_category_id
-    WHERE 
+    WHERE
         assessments.latest = 'true'
   		AND class_name IN ('AVES')
         AND assessment_ranges.presence IN (1, 2)
         AND assessment_ranges.origin IN (1, 2, 6)
         AND assessment_ranges.seasonal IN (1, 2, 3, 4, 5)
 )
-SELECT 
+SELECT
 	id_no,
     seasonal,
-    COALESCE(elevation_lower, -500.0) as elevation_lower,
-    COALESCE(elevation_upper, 9000.0) as elevation_upper,
+    elevation_lower,
+    elevation_upper,
     full_habitat_code,
     geometry
-FROM 
+FROM
     unique_seasons
 WHERE
 		rn = 1

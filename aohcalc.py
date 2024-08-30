@@ -72,7 +72,7 @@ def aohcalc(
     species_id = filtered_species_info.id_no.values[0]
     seasonality = filtered_species_info.seasonal.values[0]
 
-    habitat_maps = [RasterLayer.layer_from_file(os.path.join(habitat_path, f"habitat_{x}.tif")) for x in habitat_list]
+    habitat_maps = [RasterLayer.layer_from_file(os.path.join(habitat_path, f"lcc_{x}.tif")) for x in habitat_list]
 
     min_elevation_map = RasterLayer.layer_from_file(min_elevation_path)
     max_elevation_map = RasterLayer.layer_from_file(max_elevation_path)

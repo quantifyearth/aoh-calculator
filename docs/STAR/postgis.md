@@ -78,7 +78,7 @@ Here we present the steps required to fetch the [Lumbierres](https://zenodo.org/
 To assist with provenance, we download the data from the Zenodo ID.
 
 ```shark-run:zenodo
-python3 ./download_zenodo_raster.py --zenodo_id 6904020 --filename lumbierres-10-5281_zenodo-5146073-v2.tif --output /data/habitat.tif
+python3 ./zenodo_download.py --zenodo_id 6904020 --filename lumbierres-10-5281_zenodo-5146073-v2.tif --output /data/habitat.tif
 ```
 
 For the corresponding crosswalk table we can use the one already defined:
@@ -105,7 +105,7 @@ python3 ./habitat_process.py --habitat /data/habitat.tif \
 To assist with provenance, we download the data from the Zenodo ID.
 
 ```shark-run:zenodo
-python3 ./download_zenodo_raster.py --zenodo_id 5719984 --filename dem-100m-esri54017.tif --output /data/elevation.tif
+python3 ./zenodo_download.py --zenodo_id 5719984 --filename dem-100m-esri54017.tif --output /data/elevation.tif
 ```
 
 Similarly to the habitat map we need to resample to 1km, however rather than picking the mean elevation, we select both the min and max elevation for each pixel, and then check whether the species is in that range when we calculate AoH.
