@@ -66,6 +66,7 @@ def make_single_type_map(
         filename = f"lcc_{habitat_value}.tif"
         tempname = os.path.join(tmpdir, filename)
         gdal.Warp(tempname, filtered_file_name, options=gdal.WarpOptions(
+            creationOptions=['COMPRESS=LZW'],
             multithread=True,
             dstSRS=target_projection,
             outputType=gdal.GDT_Float32,
