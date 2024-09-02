@@ -1,3 +1,8 @@
+---
+inputs:
+    crosswalk: /data/crosswalk.csv
+    clmskey: /data/clms.key
+---
 # How to run the pipeline
 
 
@@ -14,11 +19,11 @@ docker build . -tag aohbuilder
 For use with the [shark pipeline](https://github.com/quantifyearth/shark), we need this block to trigger a build currently:
 
 ```shark-build:aohbuilder
-((from ghcr.io/osgeo/gdal:ubuntu-small-3.8.5)
+((from ghcr.io/osgeo/gdal:ubuntu-small-3.9.2)
 (run (network host) (shell "apt-get update -qqy && apt-get -y install python3-pip libpq-dev git && rm -rf /var/lib/apt/lists/* && rm -rf /var/cache/apt/*"))
- (run (network host) (shell "pip install --upgrade pip"))
+ (run (shell "python3 -m pip config set global.break-system-packages true"))
  (run (network host) (shell "pip install 'numpy<2'"))
- (run (network host) (shell "pip install gdal[numpy]==3.8.5"))
+ (run (network host) (shell "pip install gdal[numpy]==3.9.2"))
  (copy (src "./") (dst "/root/"))
  (workdir "/root/")
  (run (network host) (shell "pip install --no-cache-dir -r requirements.txt"))
@@ -27,14 +32,14 @@ For use with the [shark pipeline](https://github.com/quantifyearth/shark), we ne
 
 For the primary data sources we fetch them directly from Zenodo/GitHub to allow for obvious provenance.
 
-```shark-build:zenodo
-((from carboncredits/zenodo-download:latest))
+```shark-build:reclaimer
+((from carboncredits/reclaimer:latest))
 ```
 
 For the projection changesd we use a barebones GDAL container. The reason for this is that these operations are expensive, and we don't want to re-execute them if we update our code.
 
 ```shark-build:gdalonly
-((from ghcr.io/osgeo/gdal:ubuntu-small-3.8.1))
+((from ghcr.io/osgeo/gdal:ubuntu-small-3.9.2))
 ```
 
 Alternatively you can build your own python virtual env assuming you have everything required. For this you will need at least a GDAL version installed locally, and you may want to update requirements.txt to match the python GDAL bindings to the version you have installed.
@@ -77,35 +82,28 @@ Here we present the steps required to fetch the [Lumbierres](https://zenodo.org/
 
 To assist with provenance, we download the data from the Zenodo ID.
 
-```shark-run:zenodo
-python3 ./zenodo_download.py --zenodo_id 6904020 --filename lumbierres-10-5281_zenodo-5146073-v2.tif --output /data/habitat.tif
-```
-
-For the corresponding crosswalk table we can use the one already defined:
-
-```shark-run:zenodo
-git clone https://github.com/prioritizr/aoh.git /data/prioritizr-aoh/
-cd /data/prioritizr-aoh/
-git checkout 34ae0912028581d6cf3d2b4e1fd68f81bc095f18
+```shark-run:reclaimer
+reclaimer zenodo --zenodo_id 3939050 --filename PROBAV_LC100_global_v3.0.1_2019-nrt_Discrete-Classification-map_EPSG-4326.tif --output /data/habitat/raw.tif
 ```
 
 The habitat map by Lumbierres et al is at 100m resolution in World Berhman projection, and for IUCN AoH maps we use Molleide at 1KM resolution. Also, whilst for terrestrial species we use a single habitat map, for other domains we take a map per layer, so this script takes in the original map, splits, reprojects, and rescales it ready for use.
 
-```shark-run:aohbuilder:
-python3 ./habitat_process.py --habitat /data/habitat.tif \
-                             --crosswalk /data/prioritizr-aoh/data-raw/crosswalk-lumb-cgls-data.csv \
+
+```shark-run:aohbuilder
+python3 ./habitat_process.py --habitat /data/habitat/raw.tif \
                              --scale 1000.0 \
                              --projection "ESRI:54009" \
-                             --output /data/habitat_maps/
+                             --output /data/habitat_layers/
 ```
+
 
 
 ### Fetching the elevation map
 
 To assist with provenance, we download the data from the Zenodo ID.
 
-```shark-run:zenodo
-python3 ./zenodo_download.py --zenodo_id 5719984 --filename dem-100m-esri54017.tif --output /data/elevation.tif
+```shark-run:reclaimer
+reclaimer zenodo --zenodo_id 5719984 --filename dem-100m-esri54017.tif --output /data/elevation.tif
 ```
 
 Similarly to the habitat map we need to resample to 1km, however rather than picking the mean elevation, we select both the min and max elevation for each pixel, and then check whether the species is in that range when we calculate AoH.
@@ -142,16 +140,23 @@ The reason for doing this primarly one of pipeline optimisation, though it also 
 /data/species-info/
 ```
 
+### Processing the crosswalk table
+
+The provided crosswalk, derived from Figure 2 in [Lumbierres et al 2021](https://conbio.onlinelibrary.wiley.com/doi/10.1111/cobi.13851), needs first converted to a canonical format used by the software that maps IUCN habitat class to code in habitat raster:
+
+```shark-run:aohbuilder
+python3 ./STAR/convert_crosswalk.py --original /data/crosswalk.csv --output /data/processed-crosswalk.csv
+```
 
 ### Calculate AoH
 
 This step generates a single AoH raster for a single one of the above GeoJSON files.
 
 ```shark-run:aohbuilder
-python3 ./aohcalc.py --habitats /data/habitat_maps/ \
+python3 ./aohcalc.py --habitats /data/habitat_layers/ \
                      --elevation-min /data/elevation-min-1k.tif \
                      --elevation-max /data/elevation-max-1k.tif \
-                     --crosswalk /data/prioritizr-aoh/data-raw/crosswalk-lumb-cgls-data.csv \
+                     --crosswalk /data/processed-crosswalk.csv \
                      --speciesdata /data/species-info/* \
                      --output /data/aohs/
 ```

@@ -62,22 +62,14 @@ Here we present the steps required to fetch the [Lumbierres](https://zenodo.org/
 
 ### Fetching the habitat map
 
-
-The provided crosswalk, derived from Figure 2 in [Lumbierres et al 2021](https://conbio.onlinelibrary.wiley.com/doi/10.1111/cobi.13851), needs first converted to a canonical format used by the software that maps IUCN habitat class to code in habitat raster:
-
-```shark-run:aohbuilder
-python3 ./STAR/convert_crosswalk.py --original /data/crosswalk.csv --output /data/processed-crosswalk.csv
-```
-
 To assist with provenance, we download the data from the Zenodo ID.
-
-```not-shark-run:reclaimer
-reclaimer clms direct --uid a8d945f0edd143a0a5240c28bafa23da --download_id f328dbcc-9069-4240-b8bb-6d5df918671a --apikeyfile /data/clms.key --output /data/habitats_unprocessed/
-```
 
 ```shark-run:reclaimer
 reclaimer zenodo --zenodo_id 3939050 --filename PROBAV_LC100_global_v3.0.1_2019-nrt_Discrete-Classification-map_EPSG-4326.tif --output /data/habitat/raw.tif
 ```
+
+The habitat map by Lumbierres et al is at 100m resolution in World Berhman projection, and for IUCN AoH maps we use Molleide at 1KM resolution. Also, whilst for terrestrial species we use a single habitat map, for other domains we take a map per layer, so this script takes in the original map, splits, reprojects, and rescales it ready for use.
+
 
 ```shark-run:aohbuilder
 python3 ./habitat_process.py --habitat /data/habitat/raw.tif \
@@ -86,11 +78,7 @@ python3 ./habitat_process.py --habitat /data/habitat/raw.tif \
                              --output /data/habitat_layers/
 ```
 
-The habitat map by Lumbierres et al is at 100m resolution in World Berhman projection, and for IUCN AoH maps we use Molleide at 1KM resolution. Also, whilst for terrestrial species we use a single habitat map, for other domains we take a map per layer, so this script takes in the original map, splits, reprojects, and rescales it ready for use.
 
-```not-shark-run:gdalonly
-gdalwarp -t_srs ESRI:54009 -tr 1000 -1000 -r min -co COMPRESS=LZW -wo NUM_THREADS=40 /data/habitats_unprocessed/* /data/habitat_maps/+
-```
 
 ### Fetching the elevation map
 
@@ -137,6 +125,14 @@ The reason for doing this primarly one of pipeline optimisation, though it also 
 
 ```shark-publish
 /data/species-info/
+```
+
+### Processing the crosswalk table
+
+The provided crosswalk, derived from Figure 2 in [Lumbierres et al 2021](https://conbio.onlinelibrary.wiley.com/doi/10.1111/cobi.13851), needs first converted to a canonical format used by the software that maps IUCN habitat class to code in habitat raster:
+
+```shark-run:aohbuilder
+python3 ./STAR/convert_crosswalk.py --original /data/crosswalk.csv --output /data/processed-crosswalk.csv
 ```
 
 ### Calculate AoH
