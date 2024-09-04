@@ -81,6 +81,7 @@ WHERE
     AND full_habitat_code NOT LIKE '7%'
     AND full_habitat_code NOT LIKE '%|7%'
     AND systems NOT LIKE '%Marine%'
+LIMIT 50
 """
 
 CURRENT_STATEMENT = STATEMENT.format(presence="(1, 2)")

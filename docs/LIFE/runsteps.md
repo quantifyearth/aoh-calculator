@@ -34,11 +34,11 @@ For use with the [shark pipeline](https://github.com/quantifyearth/shark), we ne
 
 For the primary data sources we fetch them directly from Zenodo/GitHub to allow for obvious provenance.
 
-```shark-build:zenodo-download
-((from carboncredits/zenodo-download:latest))
+```shark-build:reclaimer
+((from carboncredits/reclaimer:latest))
 ```
 
-For the projection changesd we use a barebones GDAL container. The reason for this is that these operations are expensive, and we don't want to re-execute them if we update our code.
+For the projection changes we use a barebones GDAL container. The reason for this is that these operations are expensive, and we don't want to re-execute them if we update our code.
 
 ```shark-build:gdalonly
 ((from ghcr.io/osgeo/gdal:ubuntu-small-3.8.5))
@@ -88,13 +88,15 @@ LIFE uses the work of Jung et al to get both the [current day habitat map](https
 
 To assist with provenance, we download the data from the Zenodo ID.
 
-```shark-run:zenodo-download
-python3 ./zenodo_download.py --zenodo_id 4038749 \
-                             --filename pnv_lvl1_004.zip \
-                             --extract --output /data/habitat/pnv_raw.tif
-python3 ./zenodo_download.py --zenodo_id 4058819 \
-                             --filename iucn_habitatclassification_composite_lvl2_ver004.zip \
-                             --extract --output /data/habitat/jung_l2_raw.tif
+```shark-run:reclaimer
+reclaimer zenodo --zenodo_id 4038749 \
+                 --filename pnv_lvl1_004.zip \
+                 --extract \
+                 --output /data/habitat/pnv_raw.tif
+reclaimer zenodo --zenodo_id 4058819 \
+                 --filename iucn_habitatclassification_composite_lvl2_ver004.zip \
+                 --extract \
+                 --output /data/habitat/jung_l2_raw.tif
 ```
 
 For LIFE the crosswalk table is generated using code by Daniele Baisero's [IUCN Modlib](https://gitlab.com/daniele.baisero/iucn-modlib/) package:
@@ -168,8 +170,8 @@ python3 ./habitat_process.py --habitat /data/habitat/arable.tif \
 
 To assist with provenance, we download the data from the Zenodo ID.
 
-```shark-run:zenodo-download
-python3 ./zenodo_download.py --zenodo_id 5719984 --output /data/elevation.tif
+```shark-run:reclaimer
+reclaimer zenodo --zenodo_id 5719984 --output /data/elevation.tif
 ```
 
 Similarly to the habitat map we need to resample to 1km, however rather than picking the mean elevation, we select both the min and max elevation for each pixel, and then check whether the species is in that range when we calculate AoH.
