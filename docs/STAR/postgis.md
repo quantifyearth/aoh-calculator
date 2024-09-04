@@ -36,7 +36,7 @@ For the primary data sources we fetch them directly from Zenodo/GitHub to allow 
 ((from carboncredits/reclaimer:latest))
 ```
 
-For the projection changesd we use a barebones GDAL container. The reason for this is that these operations are expensive, and we don't want to re-execute them if we update our code.
+For the projection changes we use a barebones GDAL container. The reason for this is that these operations are expensive, and we don't want to re-execute them if we update our code.
 
 ```shark-build:gdalonly
 ((from ghcr.io/osgeo/gdal:ubuntu-small-3.9.2))
