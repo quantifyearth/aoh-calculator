@@ -1,6 +1,7 @@
 import argparse
 import math
 import os
+import logging
 import psutil
 import shutil
 import sys
@@ -15,6 +16,9 @@ from yirgacheffe.layers import RasterLayer  # type: ignore
 
 from aohcalc import load_crosswalk_table
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(message)s')
+
 BLOCKSIZE = 512
 
 def enumerate_subset(
@@ -24,8 +28,9 @@ def enumerate_subset(
     with RasterLayer.layer_from_file(habitat_path) as habitat_map:
         blocksize = min(BLOCKSIZE, habitat_map.window.ysize - offset)
         data = habitat_map.read_array(0, offset, habitat_map.window.xsize, blocksize)
-        values = np.unique(data)
-    return set(values)
+        values = data.flatten()
+        res = set(values)
+    return res
 
 def enumerate_terrain_types(
     habitat_path: str
@@ -35,7 +40,8 @@ def enumerate_terrain_types(
 
     blocks = range(0, ysize, BLOCKSIZE)
 
-    with Pool(processes=50) as pool:
+    logger.info("Enumerating habitat classes in raster...")
+    with Pool(processes=int(cpu_count() / 2)) as pool:
         sets = pool.map(partial(enumerate_subset, habitat_path), blocks)
 
     superset = set()
@@ -50,7 +56,7 @@ def make_single_type_map(
     output_directory_path: str,
     habitat_value: int | float,
 ) -> None:
-    gdal.SetCacheMax(20 * 1024 * 1024 * 1024)
+    gdal.SetCacheMax(264 * 1024 * 1024 * 1024)
 
     # We could do this via yirgacheffe if it wasn't for the need to
     # both rescale and reproject. So we do the initial filtering
@@ -58,25 +64,28 @@ def make_single_type_map(
     # warping
     with tempfile.TemporaryDirectory() as tmpdir:
         with RasterLayer.layer_from_file(habitat_path) as habitat_map:
+            logger.info(f"{habitat_value} - start")
             filtered_file_name = os.path.join(tmpdir, f"filtered_{habitat_value}.tif")
             calc = habitat_map.numpy_apply(lambda c: c == habitat_value)
-            with RasterLayer.empty_raster_layer_like(habitat_map, filename=filtered_file_name, datatype=gdal.GDT_Byte) as filtered_map:
+            with RasterLayer.empty_raster_layer_like(habitat_map, datatype=gdal.GDT_Byte) as filtered_map:
                 calc.save(filtered_map)
 
-        filename = f"lcc_{habitat_value}.tif"
-        tempname = os.path.join(tmpdir, filename)
-        gdal.Warp(tempname, filtered_file_name, options=gdal.WarpOptions(
-            creationOptions=['COMPRESS=LZW'],
-            multithread=True,
-            dstSRS=target_projection,
-            outputType=gdal.GDT_Float32,
-            xRes=pixel_scale,
-            yRes=0.0 - pixel_scale,
-            resampleAlg="average",
-            workingType=gdal.GDT_Float32
-        ))
+                logger.info(f"{habitat_value} - mid")
+                filename = f"lcc_{habitat_value}.tif"
+                tempname = os.path.join(tmpdir, filename)
+                gdal.Warp(tempname, filtered_map._dataset, options=gdal.WarpOptions(
+                    creationOptions=['COMPRESS=LZW', 'NUM_THREADS=16'],
+                    multithread=True,
+                    dstSRS=target_projection,
+                    outputType=gdal.GDT_Float32,
+                    xRes=pixel_scale,
+                    yRes=0.0 - pixel_scale,
+                    resampleAlg="average",
+                    workingType=gdal.GDT_Float32
+                ))
+                logger.info(f"{habitat_value} - done")
 
-        shutil.move(tempname, os.path.join(output_directory_path, filename))
+    shutil.move(tempname, os.path.join(output_directory_path, filename))
 
 def habitat_process(
     habitat_path: str,
@@ -108,7 +117,7 @@ def habitat_process(
         estimated_memory = pixel_size * pixels
 
         mem_stats = psutil.virtual_memory()
-        max_copies = math.floor((mem_stats.available * 0.5) / estimated_memory)
+        max_copies = math.floor((mem_stats.available) / estimated_memory)
         assert max_copies > 0
         process_count = min(max_copies, process_count)
         print(f"Estimating we can run {process_count} concurrent tasks")
