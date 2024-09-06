@@ -147,7 +147,6 @@ python3 ./LIFE/make_restore_map.py --pnv /data/habitat/pnv_raw.tif \
 
  python3 ./habitat_process.py --habitat /data/habitat/restore.tif \
                              --scale 0.016666666666667 \
-                             --projection "ESRI:54009" \
                              --output /data/habitat_maps/restore/
 ```
 

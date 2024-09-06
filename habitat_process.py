@@ -12,6 +12,8 @@ from typing import Optional, Set
 
 import numpy as np
 from osgeo import gdal
+import rasterio as rio
+from rasterio.warp import calculate_default_transform, reproject, Resampling
 from yirgacheffe.layers import RasterLayer  # type: ignore
 
 from aohcalc import load_crosswalk_table
@@ -73,6 +75,7 @@ def make_single_type_map(
                 logger.info(f"{habitat_value} - mid")
                 filename = f"lcc_{habitat_value}.tif"
                 tempname = os.path.join(tmpdir, filename)
+
                 gdal.Warp(tempname, filtered_map._dataset, options=gdal.WarpOptions(
                     creationOptions=['COMPRESS=LZW', 'NUM_THREADS=16'],
                     multithread=True,
@@ -85,7 +88,7 @@ def make_single_type_map(
                 ))
                 logger.info(f"{habitat_value} - done")
 
-    shutil.move(tempname, os.path.join(output_directory_path, filename))
+        shutil.move(tempname, os.path.join(output_directory_path, filename))
 
 def habitat_process(
     habitat_path: str,
@@ -117,7 +120,7 @@ def habitat_process(
         estimated_memory = pixel_size * pixels
 
         mem_stats = psutil.virtual_memory()
-        max_copies = math.floor((mem_stats.available) / estimated_memory)
+        max_copies = math.floor((mem_stats.available * 0.5) / estimated_memory)
         assert max_copies > 0
         process_count = min(max_copies, process_count)
         print(f"Estimating we can run {process_count} concurrent tasks")
