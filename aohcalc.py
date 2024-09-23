@@ -2,14 +2,14 @@ import argparse
 import math
 import os
 import sys
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 
 # import pyshark # pylint: disable=W0611
 import numpy as np
 import pandas as pd
 from geopandas import gpd
-from yirgacheffe.layers import RasterLayer, VectorLayer, ConstantLayer
+from yirgacheffe.layers import RasterLayer, VectorLayer, ConstantLayer, UniformAreaLayer
 from alive_progress import alive_bar
 from osgeo import gdal
 gdal.UseExceptions()
@@ -43,6 +43,7 @@ def aohcalc(
     habitat_path: str,
     min_elevation_path: str,
     max_elevation_path: str,
+    area_path: Optional[str],
     crosswalk_path: str,
     species_data_path: str,
     output_directory_path: str,
@@ -82,9 +83,15 @@ def aohcalc(
         min_elevation_map
     )
 
+    area_map = None
+    if area_path:
+        area_map = UniformAreaLayer.layer_from_file(area_path)
+
     result_filename = os.path.join(output_directory_path, f"{species_id}_{seasonality}.tif")
 
     layers = habitat_maps + [min_elevation_map, max_elevation_map, range_map]
+    if area_map:
+        layers.append(area_map)
     try:
         intersection = RasterLayer.find_intersection(layers)
     except ValueError:
@@ -135,7 +142,11 @@ def aohcalc(
     if filtered_by_both.sum() == 0:
         filtered_by_both = filtered_by_habtitat
 
-    calc = filtered_by_both + (range_map.numpy_apply(lambda chunk: (1 - chunk)) * 2)
+    if area_map:
+        calc = filtered_by_both * area_map
+    else:
+        calc = filtered_by_both
+
     with alive_bar(manual=True) as bar:
         calc.save(result, callback=bar)
 
@@ -161,6 +172,13 @@ def main() -> None:
         help="max elevation raster",
         required=True,
         dest="max_elevation_path",
+    )
+    parser.add_argument(
+        '--area',
+        type=str,
+        help="optional area per pixel raster. Can be 1xheight.",
+        required=False,
+        dest="area_path",
     )
     parser.add_argument(
         '--crosswalk',
@@ -189,6 +207,7 @@ def main() -> None:
         args.habitat_path,
         args.min_elevation_path,
         args.max_elevation_path,
+        args.area_path,
         args.crosswalk_path,
         args.species_data_path,
         args.output_path

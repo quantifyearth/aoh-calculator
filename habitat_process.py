@@ -39,13 +39,10 @@ def enumerate_terrain_types(
 ) -> Set[int]:
     with RasterLayer.layer_from_file(habitat_path) as habitat_map:
         ysize = habitat_map.window.ysize
-
     blocks = range(0, ysize, BLOCKSIZE)
-
     logger.info("Enumerating habitat classes in raster...")
     with Pool(processes=int(cpu_count() / 2)) as pool:
         sets = pool.map(partial(enumerate_subset, habitat_path), blocks)
-
     superset = set()
     for s in sets:
         superset.update(s)
