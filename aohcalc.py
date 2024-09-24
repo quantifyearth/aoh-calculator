@@ -1,4 +1,5 @@
 import argparse
+import json
 import math
 import os
 import sys
@@ -83,11 +84,14 @@ def aohcalc(
         min_elevation_map
     )
 
-    area_map = None
+    area_map = ConstantLayer(1.0)
     if area_path:
         area_map = UniformAreaLayer.layer_from_file(area_path)
 
+    range_total = (range_map * area_map).sum()
+
     result_filename = os.path.join(output_directory_path, f"{species_id}_{seasonality}.tif")
+    manifest_filename = os.path.join(output_directory_path, f"{species_id}_{seasonality}.json")
 
     layers = habitat_maps + [min_elevation_map, max_elevation_map, range_map]
     if area_map:
@@ -136,19 +140,34 @@ def aohcalc(
     else:
         filtered_by_habtitat = range_map
 
+    hab_only_total = (filtered_by_habtitat * area_map).sum()
+
     filtered_elevation = (min_elevation_map.numpy_apply(lambda chunk: chunk <= elevation_upper) *
         max_elevation_map.numpy_apply(lambda chunk: chunk >= elevation_lower))
+
+    dem_only_total = (filtered_elevation * range_map * area_map).sum()
+
     filtered_by_both = filtered_elevation * filtered_by_habtitat
     if filtered_by_both.sum() == 0:
         filtered_by_both = filtered_by_habtitat
 
-    if area_map:
-        calc = filtered_by_both * area_map
-    else:
-        calc = filtered_by_both
+    calc = filtered_by_both * area_map
 
     with alive_bar(manual=True) as bar:
-        calc.save(result, callback=bar)
+        aoh_total = calc.save(result, and_sum=True, callback=bar)
+
+    with open(species_data_path) as f:
+        manifest = json.load(f)
+    del manifest['geometry']
+    manifest.update({
+        'range_total': range_total,
+        'hab_total': hab_only_total,
+        'dem_total': dem_only_total,
+        'aoh_total': aoh_total,
+    })
+    with open(manifest_filename, 'w') as f:
+        json.dump(manifest, f)
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Area of habitat calculator.")
