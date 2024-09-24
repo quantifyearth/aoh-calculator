@@ -2,21 +2,15 @@ import argparse
 import math
 import os
 import logging
-import psutil
 import shutil
-import sys
 import tempfile
 from functools import partial
 from multiprocessing import Pool, cpu_count
 from typing import Optional, Set
 
-import numpy as np
+import psutil
 from osgeo import gdal
-import rasterio as rio
-from rasterio.warp import calculate_default_transform, reproject, Resampling
 from yirgacheffe.layers import RasterLayer  # type: ignore
-
-from aohcalc import load_crosswalk_table
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(message)s')
@@ -63,17 +57,14 @@ def make_single_type_map(
     # warping
     with tempfile.TemporaryDirectory() as tmpdir:
         with RasterLayer.layer_from_file(habitat_path) as habitat_map:
-            logger.info(f"{habitat_value} - start")
-            filtered_file_name = os.path.join(tmpdir, f"filtered_{habitat_value}.tif")
             calc = habitat_map.numpy_apply(lambda c: c == habitat_value)
             with RasterLayer.empty_raster_layer_like(habitat_map, datatype=gdal.GDT_Byte) as filtered_map:
                 calc.save(filtered_map)
 
-                logger.info(f"{habitat_value} - mid")
                 filename = f"lcc_{habitat_value}.tif"
                 tempname = os.path.join(tmpdir, filename)
 
-                gdal.Warp(tempname, filtered_map._dataset, options=gdal.WarpOptions(
+                gdal.Warp(tempname, filtered_map._dataset, options=gdal.WarpOptions( # pylint: disable=W0212
                     creationOptions=['COMPRESS=LZW', 'NUM_THREADS=16'],
                     multithread=True,
                     dstSRS=target_projection,
@@ -83,7 +74,6 @@ def make_single_type_map(
                     resampleAlg="average",
                     workingType=gdal.GDT_Float32
                 ))
-                logger.info(f"{habitat_value} - done")
 
         shutil.move(tempname, os.path.join(output_directory_path, filename))
 

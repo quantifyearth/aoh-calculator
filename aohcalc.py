@@ -127,8 +127,8 @@ def aohcalc(
 
     if habitat_list:
         combined_habitat = habitat_maps[0]
-        for map in habitat_maps[1:]:
-            combined_habitat = combined_habitat + map
+        for map_layer in habitat_maps[1:]:
+            combined_habitat = combined_habitat + map_layer
         combined_habitat = combined_habitat.numpy_apply(lambda c: np.where(c > 1, 1, c))
         filtered_by_habtitat = range_map * combined_habitat
         if filtered_by_habtitat.sum() == 0:
