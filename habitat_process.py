@@ -44,7 +44,7 @@ def enumerate_terrain_types(
 
 def make_single_type_map(
     habitat_path: str,
-    pixel_scale: float,
+    pixel_scale: Optional[float],
     target_projection: Optional[str],
     output_directory_path: str,
     habitat_value: int | float,
@@ -70,7 +70,7 @@ def make_single_type_map(
                     dstSRS=target_projection,
                     outputType=gdal.GDT_Float32,
                     xRes=pixel_scale,
-                    yRes=0.0 - pixel_scale,
+                    yRes=((0.0 - pixel_scale) if pixel_scale else pixel_scale),
                     resampleAlg="average",
                     workingType=gdal.GDT_Float32
                 ))
@@ -79,7 +79,7 @@ def make_single_type_map(
 
 def habitat_process(
     habitat_path: str,
-    pixel_scale: float,
+    pixel_scale: Optional[float],
     target_projection: Optional[str],
     output_directory_path: str,
     process_count: int
@@ -128,7 +128,7 @@ def main() -> None:
     parser.add_argument(
         '--habitat',
         type=str,
-        help="Initial habitat.",
+        help="Path of initial combined habitat map.",
         required=True,
         dest="habitat_path"
     )
@@ -137,12 +137,12 @@ def main() -> None:
         type=float,
         required=True,
         dest="pixel_scale",
-        help="Output pixel scale value."
+        help="Optional output pixel scale value, otherwise same as source."
     )
     parser.add_argument(
         '--projection',
         type=str,
-        help="Target projection",
+        help="Optional target projection, otherwise same as source.",
         required=False,
         dest="target_projection",
         default=None
@@ -160,7 +160,7 @@ def main() -> None:
         required=False,
         default=round(cpu_count() / 2),
         dest="processes_count",
-        help="Number of concurrent threads to use."
+        help="Optional number of concurrent threads to use."
     )
     args = parser.parse_args()
 
