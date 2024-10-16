@@ -19,21 +19,18 @@ def load_crosswalk_table(table_file_name: str) -> Dict[str,List[int]]:
     rawdata = pd.read_csv(table_file_name)
     result = {}
     for _, row in rawdata.iterrows():
+        code = str(row.code)
         try:
-            result[row.code].append(int(row.value))
+            result[code].append(int(row.value))
         except KeyError:
-            result[row.code] = [int(row.value)]
+            result[code] = [int(row.value)]
     return result
 
-def crosswalk_habitats(crosswalk_table: Dict[str, int], raw_habitats: List) -> List:
+def crosswalk_habitats(crosswalk_table: Dict[str, int], raw_habitats: List[str]) -> List[int]:
     result = []
     for habitat in raw_habitats:
         try:
-            hab = float(habitat)
-        except ValueError:
-            continue
-        try:
-            crosswalked_habatit = crosswalk_table[hab]
+            crosswalked_habatit = crosswalk_table[habitat]
         except KeyError:
             continue
         result += crosswalked_habatit
@@ -60,6 +57,13 @@ def aohcalc(
         sys.exit(1)
     assert filtered_species_info.shape[0] == 1
 
+    species_id = filtered_species_info.id_no.values[0]
+    seasonality = filtered_species_info.season.values[0]
+
+    result_filename = os.path.join(output_directory_path, f"{species_id}_{seasonality}.tif")
+    if os.path.exists(result_filename):
+        return
+
     try:
         elevation_lower = math.floor(float(filtered_species_info.elevation_lower.values[0]))
         elevation_upper = math.ceil(float(filtered_species_info.elevation_upper.values[0]))
@@ -69,11 +73,13 @@ def aohcalc(
         sys.exit()
 
     habitat_list = crosswalk_habitats(crosswalk_table, raw_habitats)
+    if len(habitat_list) == 0:
+        print("No habitats found in crosswalk!", file=sys.stderr)
+        sys.exit()
 
-    species_id = filtered_species_info.id_no.values[0]
-    seasonality = filtered_species_info.seasonal.values[0]
-
-    habitat_maps = [RasterLayer.layer_from_file(os.path.join(habitat_path, f"lcc_{x}.tif")) for x in habitat_list]
+    ideal_habitat_map_files = [os.path.join(habitat_path, f"lcc_{x}.tif") for x in habitat_list]
+    habitat_maps = [RasterLayer.layer_from_file(x) for x in ideal_habitat_map_files if os.path.exists(x)]
+    assert len(habitat_maps) > 0
 
     min_elevation_map = RasterLayer.layer_from_file(min_elevation_path)
     max_elevation_map = RasterLayer.layer_from_file(max_elevation_path)
@@ -87,7 +93,6 @@ def aohcalc(
     if area_path:
         area_map = UniformAreaLayer.layer_from_file(area_path)
 
-    result_filename = os.path.join(output_directory_path, f"{species_id}_{seasonality}.tif")
 
     layers = habitat_maps + [min_elevation_map, max_elevation_map, range_map]
     if area_map:
@@ -99,14 +104,14 @@ def aohcalc(
         print("Just using range")
 
         result = RasterLayer.empty_raster_layer_like(
-            range_map,
+            area_map,
             filename=result_filename,
             compress=True,
-            nodata=2,
-            nbits=2
+            # nodata=2,
+            # nbits=2
         )
-        b = result._dataset.GetRasterBand(1) # pylint:disable=W0212
-        b.SetMetadataItem('NBITS', '2', 'IMAGE_STRUCTURE')
+        # b = result._dataset.GetRasterBand(1) # pylint:disable=W0212
+        # b.SetMetadataItem('NBITS', '2', 'IMAGE_STRUCTURE')
         with alive_bar(manual=True) as bar:
             range_map.save(result, callback=bar)
         sys.exit()
@@ -115,15 +120,14 @@ def aohcalc(
         layer.set_window_for_intersection(intersection)
 
     result = RasterLayer.empty_raster_layer_like(
-        min_elevation_map,
+        area_map,
         filename=result_filename,
         compress=True,
-        datatype=gdal.GDT_Byte,
-        nodata=2,
-        nbits=2
+        # nodata=2,
+        # nbits=2
     )
-    b = result._dataset.GetRasterBand(1) # pylint:disable=W0212
-    b.SetMetadataItem('NBITS', '2', 'IMAGE_STRUCTURE')
+    # b = result._dataset.GetRasterBand(1) # pylint:disable=W0212
+    # b.SetMetadataItem('NBITS', '2', 'IMAGE_STRUCTURE')
 
     if habitat_list:
         combined_habitat = habitat_maps[0]
