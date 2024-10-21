@@ -2,7 +2,7 @@ import argparse
 import math
 import os
 import sys
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 
 # import pyshark # pylint: disable=W0611
@@ -26,14 +26,14 @@ def load_crosswalk_table(table_file_name: str) -> Dict[str,List[int]]:
             result[code] = [int(row.value)]
     return result
 
-def crosswalk_habitats(crosswalk_table: Dict[str, int], raw_habitats: List[str]) -> List[int]:
-    result = []
+def crosswalk_habitats(crosswalk_table: Dict[str, List[int]], raw_habitats: Set[str]) -> Set[int]:
+    result = set()
     for habitat in raw_habitats:
         try:
             crosswalked_habatit = crosswalk_table[habitat]
         except KeyError:
             continue
-        result += crosswalked_habatit
+        result |= set(crosswalked_habatit)
     return result
 
 def aohcalc(
@@ -67,18 +67,23 @@ def aohcalc(
     try:
         elevation_lower = math.floor(float(filtered_species_info.elevation_lower.values[0]))
         elevation_upper = math.ceil(float(filtered_species_info.elevation_upper.values[0]))
-        raw_habitats = filtered_species_info.full_habitat_code.values[0].split('|')
+        raw_habitats = set(filtered_species_info.full_habitat_code.values[0].split('|'))
     except (AttributeError, TypeError):
         print(f"Species data missing one or more needed attributes: {filtered_species_info}", file=sys.stderr)
         sys.exit()
 
     habitat_list = crosswalk_habitats(crosswalk_table, raw_habitats)
     if len(habitat_list) == 0:
-        print("No habitats found in crosswalk!", file=sys.stderr)
+        print(f"No habitats found in crosswalk! {species_id}_{seasonality} had {raw_habitats}", file=sys.stderr)
         sys.exit()
 
     ideal_habitat_map_files = [os.path.join(habitat_path, f"lcc_{x}.tif") for x in habitat_list]
-    habitat_maps = [RasterLayer.layer_from_file(x) for x in ideal_habitat_map_files if os.path.exists(x)]
+    habitat_map_files = [x for x in ideal_habitat_map_files if os.path.exists(x)]
+    if len(habitat_map_files) == 0:
+        print(f"No matching habitat layers found for {species_id}_{seasonality} in {habitat_path}: {habitat_list}", file=sys.stderr)
+        sys.exit()
+
+    habitat_maps = [RasterLayer.layer_from_file(x) for x in habitat_map_files]
     assert len(habitat_maps) > 0
 
     min_elevation_map = RasterLayer.layer_from_file(min_elevation_path)
@@ -92,7 +97,6 @@ def aohcalc(
     area_map = None
     if area_path:
         area_map = UniformAreaLayer.layer_from_file(area_path)
-
 
     layers = habitat_maps + [min_elevation_map, max_elevation_map, range_map]
     if area_map:
