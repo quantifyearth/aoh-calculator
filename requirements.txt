@@ -7,7 +7,7 @@ scikit-image
 requests
 zenodo_search
 
-gdal[numpy]
+gdal[numpy]==3.9.3
 
 git+https://github.com/quantifyearth/iucn_modlib
 git+https://github.com/quantifyearth/pyshark

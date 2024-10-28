@@ -1,6 +1,7 @@
 # AOH Calculator
 
-This repository contains code for making Area of Habitat (AOH) rasters from a mix of data sources, following the methodology described in [Brooks et al](<https://www.cell.com/trends/ecology-evolution/fulltext/S0169-5347(19)30189-2>). This work is part of the [LIFE biodiversity map](https://www.cambridge.org/engage/coe/article-details/660e6f08418a5379b00a82b2) work at the University of Cambridge; the remainder of the analysis pipeline will be open sourced once the full paper has been accepted for publication, but given the importance of AoH calculations for many different analyses, we've opened this section early to allow others to re-use our efforts rather than spend time on yet another AoH implementation.
+This repository contains code for making Area of Habitat (AOH) rasters from a mix of data sources, following the methodology described in [Brooks et al](https://www.cell.com/trends/ecology-evolution/fulltext/S0169-5347(19)30189-2) and adhearing to the IUCN Redlist Technical Working Group guidance on AoH production. This work is part of the [LIFE biodiversity map](https://www.cambridge.org/engage/coe/article-details/660e6f08418a5379b00a82b2) work at the University of Cambridge.
+
 
 To generate a set of AOH rasters you will need:
 
@@ -28,6 +29,7 @@ usage: aohcalc.py [-h] --habitats HABITAT_PATH
                   [--area AREA_PATH]
                   --crosswalk CROSSWALK_PATH
                   --speciesdata SPECIES_DATA_PATH
+                  [--force-habitat]
                   --output_directory OUTPUT_PATH
 
 Area of habitat calculator.
@@ -35,18 +37,18 @@ Area of habitat calculator.
 options:
   -h, --help            show this help message and exit
   --habitats HABITAT_PATH
-                        Directory of habitat rasters, one per habitat class.
+                        set of habitat rasters
   --elevation-min MIN_ELEVATION_PATH
-                        Minimum elevation raster.
+                        min elevation raster
   --elevation-max MAX_ELEVATION_PATH
-                        Maximum elevation raster
-  --area AREA_PATH      Optional area per pixel raster. Can be 1xheight.
+                        max elevation raster
+  --area AREA_PATH      optional area per pixel raster. Can be 1xheight.
   --crosswalk CROSSWALK_PATH
-                        Path of habitat crosswalk table.
+                        habitat crosswalk table path
   --speciesdata SPECIES_DATA_PATH
-                        Single species/seasonality geojson.
-  --output_directory OUTPUT_PATH
-                        Directory where area geotiffs should be stored
+                        Single species/seasonality geojson
+  --force-habitat       If set, don't treat an empty habitat layer layer as per IRTWG.
+  --output OUTPUT_PATH  directory where area geotiffs should be stored
 
 ```
 
@@ -63,6 +65,7 @@ To calculate the AoH we need the following information:
 - Elevation-max/Elevation-min: Two GeoTIFFs, in which the highest and lowest elevation for that pixel is recorded. Must be in same units as those in the GeoJSON.
 - Crosswalk: A crosswalk table in CSV format that converts between the IUCN habitat classes and names of the habitat raster layers.
 - Area: An optiona raster containing the area of each pixel, which will be multipled with the AoH raster before saving to produce a result in area rahter than pixel occupancy.
+- Force habitat: An optional flag that means rather than following the IUCN RLTWG guidelines, whereby if there is zero area in the habitat layer after filtering for species habitat preferneces we should revert to range, this flag will keep the result as zero. This is to allow for evaluation of scenarios that might lead to extinction via land use chnages.
 - Output directory - Two files will be output to this directory: an AoH raster with the format `{id_no}_{seasonal}.tif` and a manifest containing information about the raster `{id_no}_{seasonal}.json`.
 
 ## habitat_process.py
