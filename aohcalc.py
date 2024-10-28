@@ -14,7 +14,6 @@ from alive_progress import alive_bar
 from osgeo import gdal
 gdal.UseExceptions()
 
-
 def load_crosswalk_table(table_file_name: str) -> Dict[str,List[int]]:
     rawdata = pd.read_csv(table_file_name)
     result = {}
@@ -43,6 +42,7 @@ def aohcalc(
     area_path: Optional[str],
     crosswalk_path: str,
     species_data_path: str,
+    force_habitat: bool,
     output_directory_path: str,
 ) -> None:
     os.makedirs(output_directory_path, exist_ok=True)
@@ -61,8 +61,6 @@ def aohcalc(
     seasonality = filtered_species_info.season.values[0]
 
     result_filename = os.path.join(output_directory_path, f"{species_id}_{seasonality}.tif")
-    if os.path.exists(result_filename):
-        return
 
     try:
         elevation_lower = math.floor(float(filtered_species_info.elevation_lower.values[0]))
@@ -73,13 +71,13 @@ def aohcalc(
         sys.exit()
 
     habitat_list = crosswalk_habitats(crosswalk_table, raw_habitats)
-    if len(habitat_list) == 0:
+    if force_habitat and len(habitat_list) == 0:
         print(f"No habitats found in crosswalk! {species_id}_{seasonality} had {raw_habitats}", file=sys.stderr)
         sys.exit()
 
     ideal_habitat_map_files = [os.path.join(habitat_path, f"lcc_{x}.tif") for x in habitat_list]
     habitat_map_files = [x for x in ideal_habitat_map_files if os.path.exists(x)]
-    if len(habitat_map_files) == 0:
+    if force_habitat and len(habitat_map_files) == 0:
         print(f"No matching habitat layers found for {species_id}_{seasonality} in {habitat_path}: {habitat_list}", file=sys.stderr)
         sys.exit()
 
@@ -111,11 +109,7 @@ def aohcalc(
             area_map,
             filename=result_filename,
             compress=True,
-            # nodata=2,
-            # nbits=2
         )
-        # b = result._dataset.GetRasterBand(1) # pylint:disable=W0212
-        # b.SetMetadataItem('NBITS', '2', 'IMAGE_STRUCTURE')
         with alive_bar(manual=True) as bar:
             range_map.save(result, callback=bar)
         sys.exit()
@@ -127,23 +121,34 @@ def aohcalc(
         area_map,
         filename=result_filename,
         compress=True,
-        # nodata=2,
-        # nbits=2
     )
-    # b = result._dataset.GetRasterBand(1) # pylint:disable=W0212
-    # b.SetMetadataItem('NBITS', '2', 'IMAGE_STRUCTURE')
 
-    if habitat_list:
+    # Habitat evaluation. In the IUCN Redlist Technical Working Group recommendations, if there are no defined
+    # habitats, then we revert to range. If the area of the habitat map filtered by species habitat is zero then we
+    # similarly revert to range as the assumption is that there is an error in the habitat coding.
+    #
+    # However, for methodologies, such as the LIFE biodiversity metric by Eyres et al, where you want to do
+    # land use change impact scenarios, this rule doesn't work, as it treats extinction due to land use change as
+    # then actually filling the range. This we have the force_habitat flag for this use case.
+    if habitat_list or (not force_habitat):
         combined_habitat = habitat_maps[0]
         for map in habitat_maps[1:]:
             combined_habitat = combined_habitat + map
         combined_habitat = combined_habitat.numpy_apply(lambda c: np.where(c > 1, 1, c))
         filtered_by_habtitat = range_map * combined_habitat
         if filtered_by_habtitat.sum() == 0:
-            filtered_by_habtitat = range_map
+            if force_habitat:
+                print("No matching habitats, not generating AoH")
+                return
+            else:
+                filtered_by_habtitat = range_map
     else:
         filtered_by_habtitat = range_map
 
+    # Elevation evaluation. As per the IUCN Redlist Technical Working Group recommendations, if the elevation
+    # filtering of the DEM returns zero, then we ignore this layer on the assumption that there is error in the
+    # elevation data. This aligns with the data hygine practices recommended by Busana et al, as implemented
+    # in cleaning.py, where any bad values for elevation cause us assume the entire range is valid.
     filtered_elevation = (min_elevation_map.numpy_apply(lambda chunk: chunk <= elevation_upper) *
         max_elevation_map.numpy_apply(lambda chunk: chunk >= elevation_lower))
     filtered_by_both = filtered_elevation * filtered_by_habtitat
@@ -203,7 +208,13 @@ def main() -> None:
         dest="species_data_path"
     )
     parser.add_argument(
-        '--output_directory',
+        '--force-habitat',
+        help="If set, don't treat an empty habitat layer layer as per IRTWG.",
+        dest="force_habitat",
+        action='store_true',
+    )
+    parser.add_argument(
+        '--output',
         type=str,
         help='directory where area geotiffs should be stored',
         required=True,
@@ -218,6 +229,7 @@ def main() -> None:
         args.area_path,
         args.crosswalk_path,
         args.species_data_path,
+        args.force_habitat,
         args.output_path
     )
 
