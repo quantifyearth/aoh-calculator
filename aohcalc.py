@@ -1,9 +1,9 @@
 import argparse
 import math
 import os
+import logging
 import sys
 from typing import Dict, List, Optional, Set
-
 
 # import pyshark # pylint: disable=W0611
 import numpy as np
@@ -13,6 +13,9 @@ from yirgacheffe.layers import RasterLayer, VectorLayer, ConstantLayer, UniformA
 from alive_progress import alive_bar
 from osgeo import gdal
 gdal.UseExceptions()
+
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(message)s')
 
 def load_crosswalk_table(table_file_name: str) -> Dict[str,List[int]]:
     rawdata = pd.read_csv(table_file_name)
@@ -53,7 +56,7 @@ def aohcalc(
     try:
         filtered_species_info = gpd.read_file(species_data_path)
     except: # pylint:disable=W0702
-        print(f"Failed to read {species_data_path}", file=sys.stderr)
+        logger.error("Failed to read %s", species_data_path)
         sys.exit(1)
     assert filtered_species_info.shape[0] == 1
 
@@ -67,18 +70,19 @@ def aohcalc(
         elevation_upper = math.ceil(float(filtered_species_info.elevation_upper.values[0]))
         raw_habitats = set(filtered_species_info.full_habitat_code.values[0].split('|'))
     except (AttributeError, TypeError):
-        print(f"Species data missing one or more needed attributes: {filtered_species_info}", file=sys.stderr)
+        logger.error("Species data missing one or more needed attributes: %s", filtered_species_info)
         sys.exit()
 
     habitat_list = crosswalk_habitats(crosswalk_table, raw_habitats)
     if force_habitat and len(habitat_list) == 0:
-        print(f"No habitats found in crosswalk! {species_id}_{seasonality} had {raw_habitats}", file=sys.stderr)
+        logger.error("No habitats found in crosswalk! %s_%s had %s", species_id, seasonality, raw_habitats)
         sys.exit()
 
     ideal_habitat_map_files = [os.path.join(habitat_path, f"lcc_{x}.tif") for x in habitat_list]
     habitat_map_files = [x for x in ideal_habitat_map_files if os.path.exists(x)]
     if force_habitat and len(habitat_map_files) == 0:
-        print(f"No matching habitat layers found for {species_id}_{seasonality} in {habitat_path}: {habitat_list}", file=sys.stderr)
+        logger.error("No matching habitat layers found for %s_%s in %s: %s",
+                     species_id, seasonality, habitat_path, habitat_list)
         sys.exit()
 
     habitat_maps = [RasterLayer.layer_from_file(x) for x in habitat_map_files]
@@ -102,8 +106,7 @@ def aohcalc(
     try:
         intersection = RasterLayer.find_intersection(layers)
     except ValueError:
-        print(f"Failed to find intersection for {species_data_path}: {range_map.area}")
-        print("Just using range")
+        logger.warning("Failed to find intersection for %s: %s",  species_data_path, range_map.area)
 
         result = RasterLayer.empty_raster_layer_like(
             area_map,
@@ -112,7 +115,7 @@ def aohcalc(
         )
         with alive_bar(manual=True) as bar:
             range_map.save(result, callback=bar)
-        sys.exit()
+        return
 
     for layer in layers:
         layer.set_window_for_intersection(intersection)
