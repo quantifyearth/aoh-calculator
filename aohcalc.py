@@ -62,9 +62,14 @@ def aohcalc(
     assert filtered_species_info.shape[0] == 1
 
     species_id = filtered_species_info.id_no.values[0]
-    seasonality = filtered_species_info.season.values[0]
-
-    result_filename = os.path.join(output_directory_path, f"{species_id}_{seasonality}.tif")
+    try:
+        seasonality = filtered_species_info.season.values[0]
+        result_filename = os.path.join(output_directory_path, f"{species_id}_{seasonality}.tif")
+        manifest_filename = os.path.join(output_directory_path, f"{species_id}_{seasonality}.json")
+    except AttributeError:
+        seasonality = None
+        result_filename = os.path.join(output_directory_path, f"{species_id}.tif")
+        manifest_filename = os.path.join(output_directory_path, f"{species_id}.json")
 
     try:
         elevation_lower = math.floor(float(filtered_species_info.elevation_lower.values[0]))
@@ -87,7 +92,6 @@ def aohcalc(
         sys.exit()
 
     habitat_maps = [RasterLayer.layer_from_file(x) for x in habitat_map_files]
-    assert len(habitat_maps) > 0
 
     min_elevation_map = RasterLayer.layer_from_file(min_elevation_path)
     max_elevation_map = RasterLayer.layer_from_file(max_elevation_path)
@@ -103,16 +107,15 @@ def aohcalc(
 
     range_total = (range_map * area_map).sum()
 
-    result_filename = os.path.join(output_directory_path, f"{species_id}_{seasonality}.tif")
-    manifest_filename = os.path.join(output_directory_path, f"{species_id}_{seasonality}.json")
 
     layers = habitat_maps + [min_elevation_map, max_elevation_map, range_map]
-    if area_map:
-        layers.append(area_map)
     try:
         intersection = RasterLayer.find_intersection(layers)
     except ValueError:
         logger.warning("Failed to find intersection for %s: %s",  species_data_path, range_map.area)
+        for layer in layers:
+            print(f"\t{layer.name}: {layer.area}")
+        print("Just using range")
 
         result = RasterLayer.empty_raster_layer_like(
             area_map,
@@ -127,9 +130,10 @@ def aohcalc(
         layer.set_window_for_intersection(intersection)
 
     result = RasterLayer.empty_raster_layer_like(
-        area_map,
+        min_elevation_map,
         filename=result_filename,
         compress=True,
+        datatype=gdal.GDT_Float32
     )
 
     # Habitat evaluation. In the IUCN Redlist Technical Working Group recommendations, if there are no defined
@@ -139,7 +143,7 @@ def aohcalc(
     # However, for methodologies, such as the LIFE biodiversity metric by Eyres et al, where you want to do
     # land use change impact scenarios, this rule doesn't work, as it treats extinction due to land use change as
     # then actually filling the range. This we have the force_habitat flag for this use case.
-    if habitat_list or (not force_habitat):
+    if habitat_maps or force_habitat:
         combined_habitat = habitat_maps[0]
         for map_layer in habitat_maps[1:]:
             combined_habitat = combined_habitat + map_layer
@@ -174,14 +178,16 @@ def aohcalc(
     with alive_bar(manual=True) as bar:
         aoh_total = calc.save(result, and_sum=True, callback=bar)
 
-    with open(species_data_path) as f:
-        manifest = json.load(f)
-    del manifest['geometry']
+    # We drop the geometry as that's a lot of data, more than the raster often
+    species_info = filtered_species_info.drop('geometry', axis=1)
+    manifest = {k: v[0] for (k, v) in species_info.items()}
+
     manifest.update({
         'range_total': range_total,
         'hab_total': hab_only_total,
         'dem_total': dem_only_total,
         'aoh_total': aoh_total,
+        'prevalence': (aoh_total / range_total) if range_total else 0,
     })
     with open(manifest_filename, 'w') as f:
         json.dump(manifest, f)
