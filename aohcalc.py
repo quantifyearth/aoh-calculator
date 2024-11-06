@@ -189,7 +189,7 @@ def aohcalc(
         'aoh_total': aoh_total,
         'prevalence': (aoh_total / range_total) if range_total else 0,
     })
-    with open(manifest_filename, 'w') as f:
+    with open(manifest_filename, 'w', encoding="utf-8") as f:
         json.dump(manifest, f)
 
 
