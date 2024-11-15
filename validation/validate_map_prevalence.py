@@ -50,7 +50,7 @@ def validate_map_prevalence(
 
     aoh_df['outlier'] = (aoh_df.fit_diff > q3 + (1.5 * iqr))  | (aoh_df.fit_diff < (q1 - (1.5 * iqr)))
 
-    outliers = aoh_df[aoh_df.outlier is True]
+    outliers = aoh_df[aoh_df.outlier == True]  # pylint: disable = C0121
     outliers.to_csv(output_path)
 
 def main() -> None:
