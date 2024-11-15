@@ -3,7 +3,7 @@
 import argparse
 
 import pandas as pd
-import statsmodels.formula.api as smf
+import pymer4
 
 def validate_map_prevalence(
     collated_data_path: str,
@@ -30,18 +30,14 @@ def validate_map_prevalence(
     aoh_df['std_n_habitats'] = (aoh_df.n_habitats - means.n_habitats) \
         / standard_devs.n_habitats
 
-    formula = smf.mixedlm(
-        "prevalence ~ std_elevation_rangekm + std_elevation_midkm + std_n_habitats",
-        data=aoh_df, groups=aoh_df["family_name"]
+    model = pymer4.Lmer(
+        "prevalence ~ std_elevation_rangekm + std_elevation_midkm + std_n_habitats + (1|family_name)",
+        data=aoh_df
     )
+    model.fit()
 
-    model = formula.fit()
-    # model = formula.fit(method=["lbfgs"])
-    # model = logit("prevalence ~ std_elevation_rangekm + std_elevation_midkm + std_n_habitats + family_name",
-    # data=aoh_df).fit()
-
-    aoh_df['fit'] = model.fittedvalues
-    aoh_df['resid'] = model.resid
+    aoh_df['fit'] = model.fits
+    aoh_df['resid'] = model.residuals
     aoh_df['fit_diff'] = aoh_df['prevalence'] - aoh_df['fit']
 
     q1 = aoh_df.fit_diff.quantile(q=0.25)
