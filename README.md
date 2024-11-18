@@ -1,7 +1,6 @@
 # AOH Calculator
 
-This repository contains code for making Area of Habitat (AOH) rasters from a mix of data sources, following the methodology described in [Brooks et al](https://www.cell.com/trends/ecology-evolution/fulltext/S0169-5347(19)30189-2) and adhearing to the IUCN Redlist Technical Working Group guidance on AoH production. This work is part of the [LIFE biodiversity map](https://www.cambridge.org/engage/coe/article-details/660e6f08418a5379b00a82b2) work at the University of Cambridge.
-
+This repository contains code for making Area of Habitat (AOH) rasters from a mix of data sources, following the methodology described in [Brooks et al](https://www.cell.com/trends/ecology-evolution/fulltext/S0169-5347(19)30189-2) and adhearing to the IUCN Redlist Technical Working Group guidance on AoH production. This work is part of the [LIFE biodiversity map](https://www.cambridge.org/engage/coe/article-details/660e6f08418a5379b00a82b2) work at the University of Cambridge. It also contains some scripts for summarising AOH data into maps of species richness and species endemism.
 
 To generate a set of AOH rasters you will need:
 
@@ -73,8 +72,9 @@ To calculate the AoH we need the following information:
 Whilst for terrestrial AOH calculations there is normally just one habitat class per pixel, for other realms like marine (which is a 3D space) this isn't the case, and so for these realms there is a requirement . To allow this code to work for all realms, we must split out terrestrial habitat maps that combine all classes into a single raster. To assist with this, we provide the `habitat_process.py` script, which also allows for rescaling and reprojecting.
 
 ```SystemShell
-python3 ./habitat_process.py -h
-usage: habitat_process.py [-h] --habitat HABITAT_PATH
+$ python3 ./habitat_process.py -h
+usage: habitat_process.py [-h]
+                          --habitat HABITAT_PATH
                           --output OUTPUT_PATH
                           --scale PIXEL_SCALE
                           [--projection TARGET_PROJECTION]
@@ -91,4 +91,51 @@ options:
   --projection TARGET_PROJECTION
                         Optional target projection, otherwise same as source.
   -j PROCESSES_COUNT    Optional number of concurrent threads to use.
+```
+
+# Summaries
+
+In the `summaries` directory you will find two scripts for taking a set of AOH maps and generating a single summary that can be useful for inferring things about a group of maps.
+
+## Species richness
+
+The species richness map is just an indicator of how many species exist in a given area. It takes each AOH map, converts it to a boolean layer to indicate precense, and then sums the resulting boolean raster layers to give you a count in each pixel of how many species are there.
+
+```SystemShell
+$ python3 ./summaries/species_richness.py -h
+usage: species_richness.py [-h]
+                           --aohs_folder AOHS
+                           --output OUTPUT
+                           [-j PROCESSES_COUNT]
+
+Calculate species richness
+
+options:
+  -h, --help          show this help message and exit
+  --aohs_folder AOHS  Folder containing set of AoHs
+  --output OUTPUT     Destination GeoTIFF file for results.
+  -j PROCESSES_COUNT  Number of concurrent threads to use.
+```
+
+## Endemism
+
+Endemism is an indicator of how much and area of land contributes to a species overall habitat: for a species with a small area of habitat then each pixel is more precious to it than it is for a species with a vast area over which they can be found. The endemism map takes the set of AoHs and the species richness map to generate, and for each species works out the proportion of its AoH is within a given pixel, and the calculates the geometric mean per pixel across all species in that pixel.
+
+```SystemShell
+$ python3 ./summaries/endemism.py -h
+usage: endemism.py [-h]
+                   --aohs_folder AOHS
+                   --species_richness SPECIES_RICHNESS
+                   --output OUTPUT
+                   [-j PROCESSES_COUNT]
+
+Calculate species richness
+
+options:
+  -h, --help            show this help message and exit
+  --aohs_folder AOHS    Folder containing set of AoHs
+  --species_richness SPECIES_RICHNESS
+                        GeoTIFF containing species richness
+  --output OUTPUT       Destination GeoTIFF file for results.
+  -j PROCESSES_COUNT    Number of concurrent threads to use.
 ```
