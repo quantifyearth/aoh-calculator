@@ -1,3 +1,4 @@
+# Implementation of AoH model validation from Dahal et al.
 # Based on R code authored by Franchesca Ridley.
 
 import argparse
@@ -30,23 +31,28 @@ def validate_map_prevalence(
     aoh_df['std_n_habitats'] = (aoh_df.n_habitats - means.n_habitats) \
         / standard_devs.n_habitats
 
-    model = pymer4.Lmer(
-        "prevalence ~ std_elevation_rangekm + std_elevation_midkm + std_n_habitats + (1|family_name)",
-        data=aoh_df
-    )
-    model.fit()
+    per_class_df = []
+    for klass in ["AMPHIBIA", "AVES", "MAMMALIA", "REPTILIA"]:
 
-    aoh_df['fit'] = model.fits
-    aoh_df['resid'] = model.residuals
-    aoh_df['fit_diff'] = aoh_df['prevalence'] - aoh_df['fit']
+        klass_df = aoh_df[aoh_df.className == klass].copy()
+        model = pymer4.Lmer(
+            "prevalence ~ std_elevation_rangekm + std_elevation_midkm + std_n_habitats + (1|family_name)",
+            data=klass_df,
+            family="binomial"
+        )
+        model.fit()
+        klass_df['fit'] = model.fits
+        klass_df['fit_diff'] = klass_df['prevalence'] - klass_df['fit']
 
-    q1 = aoh_df.fit_diff.quantile(q=0.25)
-    q3 = aoh_df.fit_diff.quantile(q=0.75)
-    iqr = q3 - q1
+        q1 = klass_df.fit_diff.quantile(q=0.25)
+        q3 = klass_df.fit_diff.quantile(q=0.75)
+        iqr = q3 - q1
 
-    aoh_df['outlier'] = (aoh_df.fit_diff > q3 + (1.5 * iqr))  | (aoh_df.fit_diff < (q1 - (1.5 * iqr)))
+        klass_df['outlier'] = (klass_df.fit_diff > q3 + (1.5 * iqr))  | (klass_df.fit_diff < (q1 - (1.5 * iqr)))
+        klass_outliers = klass_df[klass_df.outlier == True]  # pylint: disable = C0121
+        per_class_df.append(klass_outliers)
 
-    outliers = aoh_df[aoh_df.outlier == True]  # pylint: disable = C0121
+    outliers = pd.concat(per_class_df)
     outliers.to_csv(output_path)
 
 def main() -> None:
