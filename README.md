@@ -139,3 +139,41 @@ options:
   --output OUTPUT       Destination GeoTIFF file for results.
   -j PROCESSES_COUNT    Number of concurrent threads to use.
 ```
+
+# Validation
+
+In [Dahal et al](https://gmd.copernicus.org/articles/15/5093/2022/) there is a method described for validating a set of AoH maps. This is implemented in the validation directory, and borrows heavily from work by [Franchesca Ridley](https://www.researchgate.net/profile/Francesca-Ridley).
+
+Before running validation, the metadata provided for each AoH map must be collated into a single table using the following script:
+
+```SystemShell
+$ python3 ./validation/collate_data.py -h
+usage: collate_data.py [-h] --aoh_results AOHS_PATH --output OUTPUT_PATH
+
+Collate metadata from AoH build.
+
+options:
+  -h, --help            show this help message and exit
+  --aoh_results AOHS_PATH
+                        Path to directory of all the AoH outputs.
+  --output OUTPUT_PATH  Destination for collated CSV.
+```
+
+## Model validation
+
+To run the model validation use the following script:
+
+```SystemShell
+$ python3 ./validation/validate_map_prevalence.py  -h
+usage: validate_map_prevalence.py [-h] --collated_aoh_data COLLATED_DATA_PATH --output OUTPUT_PATH
+
+Validate map prevalence.
+
+options:
+  -h, --help            show this help message and exit
+  --collated_aoh_data COLLATED_DATA_PATH
+                        CSV containing collated AoH data
+  --output OUTPUT_PATH  CSV of outliers.
+```
+
+This will produce a CSV file listing just the AoH maps that fail model validation.
