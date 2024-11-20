@@ -10,7 +10,7 @@ def collate_data(
     aoh_results: str,
     output_path: str,
 ) -> None:
-    manifests = [os.path.join(aoh_results, fn) for fn in glob("*.json", root_dir=aoh_results)]
+    manifests = [os.path.join(aoh_results, fn) for fn in glob("**/*.json", root_dir=aoh_results, recursive=True)]
     if not manifests:
         print(f"Found no manifests in {aoh_results}", file=sys.stderr)
         sys.exit(-1)

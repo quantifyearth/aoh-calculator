@@ -6,12 +6,7 @@ import argparse
 import pandas as pd
 import pymer4
 
-def validate_map_prevalence(
-    collated_data_path: str,
-    output_path: str,
-) -> None:
-    aoh_df = pd.read_csv(collated_data_path)
-
+def model_validation(aoh_df: pd.DataFrame) -> pd.DataFrame:
     # Ger rid of any where we had no AoH
     aoh_df = aoh_df[aoh_df.prevalence > 0]
 
@@ -32,9 +27,14 @@ def validate_map_prevalence(
         / standard_devs.n_habitats
 
     per_class_df = []
-    for klass in ["AMPHIBIA", "AVES", "MAMMALIA", "REPTILIA"]:
 
-        klass_df = aoh_df[aoh_df.className == klass].copy()
+    klasses = aoh_df.class_name.unique()
+    if len(klasses) == 0:
+        raise ValueError("No species classes were found")
+
+    for klass in klasses:
+        klass_df = aoh_df[aoh_df.class_name == klass].copy()
+        print(f"{klass}:\n\taohs: {len(klass_df)}")
         model = pymer4.Lmer(
             "prevalence ~ std_elevation_rangekm + std_elevation_midkm + std_n_habitats + (1|family_name)",
             data=klass_df,
@@ -50,9 +50,17 @@ def validate_map_prevalence(
 
         klass_df['outlier'] = (klass_df.fit_diff > q3 + (1.5 * iqr))  | (klass_df.fit_diff < (q1 - (1.5 * iqr)))
         klass_outliers = klass_df[klass_df.outlier == True]  # pylint: disable = C0121
+        print(f"\toutliers: {len(klass_outliers)}")
         per_class_df.append(klass_outliers)
 
-    outliers = pd.concat(per_class_df)
+    return pd.concat(per_class_df)
+
+def validate_map_prevalence(
+    collated_data_path: str,
+    output_path: str,
+) -> None:
+    aoh_df = pd.read_csv(collated_data_path)
+    outliers = model_validation(aoh_df)
     outliers.to_csv(output_path)
 
 def main() -> None:
