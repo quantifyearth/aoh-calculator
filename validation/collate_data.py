@@ -19,6 +19,7 @@ def collate_data(
         "id_no",
         "class_name",
         "family_name",
+        "scientific_name",
         "season",
         "elevation_upper",
         "elevation_lower",
