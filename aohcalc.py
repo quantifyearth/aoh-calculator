@@ -103,12 +103,13 @@ def aohcalc(
 
     area_map = ConstantLayer(1.0)
     if area_path:
-        area_map = UniformAreaLayer.layer_from_file(area_path)
+        try:
+            area_map = UniformAreaLayer.layer_from_file(area_path)
+        except ValueError:
+            area_map = RasterLayer.layer_from_file(area_path)
 
-    range_total = (range_map * area_map).sum()
 
-
-    layers = habitat_maps + [min_elevation_map, max_elevation_map, range_map]
+    layers = habitat_maps + [min_elevation_map, max_elevation_map, range_map, area_map]
     try:
         intersection = RasterLayer.find_intersection(layers)
     except ValueError:
@@ -128,6 +129,8 @@ def aohcalc(
 
     for layer in layers:
         layer.set_window_for_intersection(intersection)
+
+    range_total = (range_map * area_map).sum()
 
     result = RasterLayer.empty_raster_layer_like(
         min_elevation_map,
