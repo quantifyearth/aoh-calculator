@@ -6,9 +6,9 @@ import time
 from glob import glob
 from multiprocessing import Manager, Process, Queue, cpu_count
 
-import numpy as np
 from osgeo import gdal
 from yirgacheffe.layers import RasterLayer
+from yirgacheffe.operators import LayerOperation
 
 def stage_1_worker(
     filename: str,
@@ -30,11 +30,11 @@ def stage_1_worker(
             union = RasterLayer.find_union(rasters)
             for r in rasters:
                 r.set_window_for_union(union)
-            calc = rasters[0].numpy_apply(lambda chunk: np.where(chunk == 0.0, 0, 1))
+            calc = LayerOperation.where(rasters[0] == 0.0, 0, 1)
             for r in rasters[1:]:
-                calc = calc | r.numpy_apply(lambda chunk: np.where(chunk == 0.0, 0, 1))
+                calc = calc | LayerOperation.where(r == 0.0, 0, 1)
         else:
-            calc = rasters[0].numpy_apply(lambda chunk: np.where(chunk == 0.0, 0, 1))
+            calc = LayerOperation.where(rasters[0] == 0.0, 0, 1)
         partial = RasterLayer.empty_raster_layer_like(rasters[0], datatype=gdal.GDT_Int16)
         calc.save(partial)
 

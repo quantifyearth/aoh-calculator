@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 from geopandas import gpd
 from yirgacheffe.layers import RasterLayer, VectorLayer, ConstantLayer, UniformAreaLayer
+from yirgacheffe.operators import LayerOperation
 from alive_progress import alive_bar
 from osgeo import gdal
 gdal.UseExceptions()
@@ -150,7 +151,7 @@ def aohcalc(
         combined_habitat = habitat_maps[0]
         for map_layer in habitat_maps[1:]:
             combined_habitat = combined_habitat + map_layer
-        combined_habitat = combined_habitat.numpy_apply(lambda c: np.where(c > 1, 1, c))
+        combined_habitat = LayerOperation.where(combined_habitat > 1, 1, combined_habitat)
         filtered_by_habtitat = range_map * combined_habitat
         if filtered_by_habtitat.sum() == 0:
             if force_habitat:
@@ -167,8 +168,7 @@ def aohcalc(
     # in cleaning.py, where any bad values for elevation cause us assume the entire range is valid.
     hab_only_total = (filtered_by_habtitat * area_map).sum()
 
-    filtered_elevation = (min_elevation_map.numpy_apply(lambda chunk: chunk <= elevation_upper) *
-        max_elevation_map.numpy_apply(lambda chunk: chunk >= elevation_lower))
+    filtered_elevation = (min_elevation_map <= elevation_upper) & (max_elevation_map >= elevation_lower)
 
     dem_only_total = (filtered_elevation * range_map * area_map).sum()
 
