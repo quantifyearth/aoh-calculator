@@ -57,7 +57,7 @@ def make_single_type_map(
     # warping
     with tempfile.TemporaryDirectory() as tmpdir:
         with RasterLayer.layer_from_file(habitat_path) as habitat_map:
-            calc = habitat_map.numpy_apply(lambda c: c == habitat_value)
+            calc = habitat_map == habitat_value
             with RasterLayer.empty_raster_layer_like(habitat_map, datatype=gdal.GDT_Byte) as filtered_map:
                 calc.save(filtered_map)
 
