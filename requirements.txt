@@ -11,7 +11,7 @@ gdal[numpy]==3.9.3
 
 git+https://github.com/quantifyearth/iucn_modlib
 git+https://github.com/quantifyearth/pyshark
-git+https://github.com/quantifyearth/yirgacheffe@0e35ecac9deabfbc2fbb5ccac8b3858fa90e6bf9
+git+https://github.com/quantifyearth/yirgacheffe@3446bdf90a96ce1175c538ab29b9a9c91f848f15
 
 pylint
 mypy

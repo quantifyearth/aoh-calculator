@@ -9,12 +9,16 @@ from typing import Dict, List, Optional, Set
 # import pyshark # pylint: disable=W0611
 import numpy as np
 import pandas as pd
-from geopandas import gpd
+import yirgacheffe.operators as yo
 from yirgacheffe.layers import RasterLayer, VectorLayer, ConstantLayer, UniformAreaLayer
-from yirgacheffe.operators import LayerOperation
+from geopandas import gpd
 from alive_progress import alive_bar
 from osgeo import gdal
 gdal.UseExceptions()
+
+
+import yirgacheffe # pylint: disable=C0412,C0413
+yirgacheffe.constants.YSTEP = 2048
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(message)s')
@@ -125,7 +129,7 @@ def aohcalc(
             compress=True,
         )
         with alive_bar(manual=True) as bar:
-            range_map.save(result, callback=bar)
+            (range_map * area_map).save(result, callback=bar)
         return
 
     for layer in layers:
@@ -151,7 +155,7 @@ def aohcalc(
         combined_habitat = habitat_maps[0]
         for map_layer in habitat_maps[1:]:
             combined_habitat = combined_habitat + map_layer
-        combined_habitat = LayerOperation.where(combined_habitat > 1, 1, combined_habitat)
+        combined_habitat = combined_habitat.clip(max=1.0)
         filtered_by_habtitat = range_map * combined_habitat
         if filtered_by_habtitat.sum() == 0:
             if force_habitat:

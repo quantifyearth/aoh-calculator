@@ -8,7 +8,6 @@ from multiprocessing import Manager, Process, Queue, cpu_count
 
 from osgeo import gdal
 from yirgacheffe.layers import RasterLayer
-from yirgacheffe.operators import LayerOperation
 
 def stage_1_worker(
     filename: str,
@@ -30,11 +29,11 @@ def stage_1_worker(
             union = RasterLayer.find_union(rasters)
             for r in rasters:
                 r.set_window_for_union(union)
-            calc = LayerOperation.where(rasters[0] == 0.0, 0, 1)
+            calc = rasters[0] != 0.0
             for r in rasters[1:]:
-                calc = calc | LayerOperation.where(r == 0.0, 0, 1)
+                calc = calc | (r != 0.0)
         else:
-            calc = LayerOperation.where(rasters[0] == 0.0, 0, 1)
+            calc = rasters[0] != 0.0
         partial = RasterLayer.empty_raster_layer_like(rasters[0], datatype=gdal.GDT_Int16)
         calc.save(partial)
 

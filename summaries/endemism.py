@@ -13,13 +13,12 @@ from multiprocessing import Manager, Process, Queue, cpu_count
 import numpy as np
 from osgeo import gdal
 from yirgacheffe.layers import RasterLayer
+import yirgacheffe.operators as yo
 
 def geometric_sum(raster: RasterLayer):
     aoh = raster.sum()
     if aoh > 0.0:
-        return raster.numpy_apply(
-            lambda a: np.log(np.where(a == 0.0, np.nan, a) / aoh)
-        )
+        return yo.log(yo.where(raster == 0.0, float('nan'), raster) / aoh)
     return None
 
 def stage_1_worker(
@@ -50,14 +49,15 @@ def stage_1_worker(
                     case None, None:
                         continue
                     case a, None:
-                        combined = a.numpy_apply(np.nan_to_num)
+                        combined = a.nan_to_num()
                     case None, b:
-                        combined = b.numpy_apply(np.nan_to_num)
+                        combined = b.nan_to_num()
                     case s1, s2:
-                        levelled_s1 = s1.numpy_apply(lambda a: np.nan_to_num(a, nan=np.inf * -1))
-                        levelled_s2 = s2.numpy_apply(lambda a: np.nan_to_num(a, nan=np.inf * -1))
-                        levelled_combined = levelled_s1.numpy_apply(lambda a, b: np.where(a > b, a, b), levelled_s2)
-                        combined = levelled_combined.numpy_apply(lambda a: np.nan_to_num(a, neginf=0.0))
+                        levelled_s1 = s1.nan_to_num(nan=np.inf * -1)
+                        levelled_s2 = s2.nan_to_num(nan=np.inf * -1)
+                        levelled_combined = yo.maximum(levelled_s1, levelled_s2)
+                        combined = levelled_combined.nan_to_num(neginf=0.0)
+
 
                 partial = RasterLayer.empty_raster_layer_like(rasters[0], datatype=gdal.GDT_Float64)
                 combined.save(partial)
@@ -65,7 +65,7 @@ def stage_1_worker(
                 summed = geometric_sum(rasters[0])
                 if summed is not None:
                     partial = RasterLayer.empty_raster_layer_like(rasters[0], datatype=gdal.GDT_Float64)
-                    summed.numpy_apply(np.nan_to_num).save(partial)
+                    summed.nan_to_num().save(partial)
                 else:
                     continue
             case _:
@@ -202,15 +202,15 @@ def endemism(
                 summed_proportion.set_window_for_intersection(intersection)
                 species_richness.set_window_for_intersection(intersection)
 
-                cleaned_species_richness = species_richness.numpy_apply(lambda a: np.where(a > 0, a, np.nan))
+                cleaned_species_richness = yo.where(species_richness > 0, species_richness, float('nan'))
 
                 with RasterLayer.empty_raster_layer_like(
                     summed_proportion,
                     filename=output_path,
                     nodata=np.nan
                 ) as result:
-                    calc = summed_proportion.numpy_apply(lambda a, b: np.exp(a / b), cleaned_species_richness)
-                    calc.parallel_save(result)
+                    calc = yo.exp(summed_proportion / cleaned_species_richness)
+                    calc.save(result)
 
 
 def main() -> None:
