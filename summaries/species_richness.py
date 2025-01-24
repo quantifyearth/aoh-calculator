@@ -8,7 +8,6 @@ from multiprocessing import Manager, Process, Queue, cpu_count
 
 from osgeo import gdal
 from yirgacheffe.layers import RasterLayer
-import yirgacheffe.operators as yo
 
 def stage_1_worker(
     filename: str,

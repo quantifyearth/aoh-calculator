@@ -10,14 +10,14 @@ from typing import Dict, List, Optional, Set
 import numpy as np
 import pandas as pd
 import yirgacheffe.operators as yo
-from geopandas import gpd
 from yirgacheffe.layers import RasterLayer, VectorLayer, ConstantLayer, UniformAreaLayer
+from geopandas import gpd
 from alive_progress import alive_bar
 from osgeo import gdal
 gdal.UseExceptions()
 
 
-import yirgacheffe
+import yirgacheffe # pylint: disable=C0412,C0413
 yirgacheffe.constants.YSTEP = 2048
 
 logger = logging.getLogger(__name__)
