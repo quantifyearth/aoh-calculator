@@ -6,6 +6,22 @@ from glob import glob
 
 import pandas as pd
 
+ESSENTIAL_COLUMNS = {
+    "id_no",
+    "class_name",
+    "family_name",
+    "scientific_name",
+    "season",
+    "elevation_upper",
+    "elevation_lower",
+    "full_habitat_code",
+    "range_total",
+    "dem_total",
+    "hab_total",
+    "aoh_total",
+    "prevalence"
+}
+
 def collate_data(
     aoh_results: str,
     output_path: str,
@@ -15,31 +31,22 @@ def collate_data(
         print(f"Found no manifests in {aoh_results}", file=sys.stderr)
         sys.exit(-1)
 
-    columns = [
-        "id_no",
-        "class_name",
-        "family_name",
-        "scientific_name",
-        "season",
-        "elevation_upper",
-        "elevation_lower",
-        "full_habitat_code",
-        "range_total",
-        "dem_total",
-        "hab_total",
-        "aoh_total",
-        "prevalence"
-    ]
     res = []
+    keys = None
     for manifest in manifests:
         with open(manifest, encoding="utf-8") as f:
             data = json.load(f)
             row = []
-            for c in columns:
-                row.append(data[c])
+            if keys is None:
+                keys = list(data.keys())
+                assert ESSENTIAL_COLUMNS.issubset(set(keys))
+            else:
+                assert keys == list(data.keys())
+            for k in keys:
+                row.append(data[k])
             row.append(len(data['full_habitat_code'].split('|')))
             res.append(row)
-    df = pd.DataFrame(res, columns=columns + ['n_habitats'])
+    df = pd.DataFrame(res, columns=keys + ['n_habitats'])
     df.to_csv(output_path, index=False)
 
 def main() -> None:
