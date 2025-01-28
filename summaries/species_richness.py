@@ -3,7 +3,7 @@ import os
 import sys
 import tempfile
 import time
-from glob import glob
+from pathlib import Path
 from multiprocessing import Manager, Process, Queue, cpu_count
 
 from osgeo import gdal
@@ -86,7 +86,7 @@ def stage_2_worker(
                 merged_result = temp
 
     if merged_result:
-        final = RasterLayer.empty_raster_layer_like(merged_result, filename=output_tif)
+        final = RasterLayer.empty_raster_layer_like(merged_result, filename=output_tif, nodata=0)
         merged_result.save(final)
 
 def species_richness(
@@ -97,14 +97,13 @@ def species_richness(
     output_dir, filename = os.path.split(output_path)
     os.makedirs(output_dir, exist_ok=True)
 
-    aohs = glob("**/*.tif", root_dir=aohs_dir)
-    print(f"We found {len(aohs)} AoH rasters")
+    aohs = list(Path(aohs_dir).rglob('*.tif'))
+    print(f"We found {len(list(aohs))} AoH rasters")
 
     species_rasters = {}
     for raster_path in aohs:
         speciesid = os.path.basename(raster_path).split('_')[0]
-        full_path = os.path.join(aohs_dir, raster_path)
-        species_rasters[speciesid] = species_rasters.get(speciesid, set()).union({full_path})
+        species_rasters[speciesid] = species_rasters.get(speciesid, set()).union({raster_path})
     print(f"Species detected: {len(species_rasters)} ")
 
     with tempfile.TemporaryDirectory() as tempdir:
@@ -143,7 +142,7 @@ def species_richness(
                 source_queue
             ))
             single_worker.start()
-            nextfiles = [os.path.join(tempdir, x) for x in glob("*.tif", root_dir=tempdir)]
+            nextfiles = Path(tempdir).rglob('*.tif')
             for file in nextfiles:
                 source_queue.put(file)
             source_queue.put(None)
