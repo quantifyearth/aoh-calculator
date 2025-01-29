@@ -31,6 +31,9 @@ def collate_data(
         print(f"Found no manifests in {aoh_results}", file=sys.stderr)
         sys.exit(-1)
 
+    output_dir, _ = os.path.split(output_path)
+    os.makedirs(output_dir, exist_ok=True)
+
     res = []
     keys = None
     for manifest in manifests:
