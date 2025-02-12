@@ -49,7 +49,7 @@ def make_single_type_map(
     output_directory_path: str,
     habitat_value: int | float,
 ) -> None:
-    gdal.SetCacheMax(264 * 1024 * 1024 * 1024)
+    logger.info("Building layer for %s...", habitat_value)
 
     # We could do this via yirgacheffe if it wasn't for the need to
     # both rescale and reproject. So we do the initial filtering
@@ -57,6 +57,7 @@ def make_single_type_map(
     # warping
     with tempfile.TemporaryDirectory() as tmpdir:
         with RasterLayer.layer_from_file(habitat_path) as habitat_map:
+            logger.info("Filtering for %s...", habitat_value)
             calc = habitat_map == habitat_value
             with RasterLayer.empty_raster_layer_like(habitat_map, datatype=gdal.GDT_Byte) as filtered_map:
                 calc.save(filtered_map)
@@ -65,6 +66,7 @@ def make_single_type_map(
                 tempname = os.path.join(tmpdir, filename)
 
                 dataset = filtered_map._dataset  # pylint: disable=W0212
+                logger.info("Projecting %s...", habitat_value)
                 gdal.Warp(tempname, dataset, options=gdal.WarpOptions(
                     creationOptions=['COMPRESS=LZW', 'NUM_THREADS=16'],
                     multithread=True,
@@ -76,6 +78,7 @@ def make_single_type_map(
                     workingType=gdal.GDT_Float32
                 ))
 
+        logger.info("Saving %s...", habitat_value)
         shutil.move(tempname, os.path.join(output_directory_path, filename))
 
 def habitat_process(
@@ -109,20 +112,26 @@ def habitat_process(
 
         mem_stats = psutil.virtual_memory()
         max_copies = math.floor((mem_stats.available * 0.5) / estimated_memory)
-        assert max_copies > 0
+        if max_copies == 0:
+            logger.warning("Low memory")
+            max_copies = 1
         process_count = min(max_copies, process_count)
-        print(f"Estimating we can run {process_count} concurrent tasks")
+        logger.info("Estimating we can run %s concurrent tasks", process_count)
 
     # We need to know how many terrains there are. We could get this from the crosswalk
     # table, but we can also work out the unique values ourselves. In practice this is
     # worth the effort, otherwise we generate a lot of empty maps potentially.
     habitats = enumerate_terrain_types(habitat_path)
 
-    with Pool(processes=process_count) as pool:
-        pool.map(
-            partial(make_single_type_map, habitat_path, pixel_scale, target_projection, output_directory_path),
-            habitats
-        )
+    if max_copies > 1:
+        with Pool(processes=process_count) as pool:
+            pool.map(
+                partial(make_single_type_map, habitat_path, pixel_scale, target_projection, output_directory_path),
+                habitats
+            )
+    else:
+        for habitat in habitats:
+            make_single_type_map(habitat_path, pixel_scale, target_projection, output_directory_path, habitat)
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Downsample habitat map to raster per terrain type.")
