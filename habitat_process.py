@@ -116,7 +116,7 @@ def habitat_process(
             logger.warning("Low memory")
             max_copies = 1
         process_count = min(max_copies, process_count)
-        logger.info(f"Estimating we can run {process_count} concurrent tasks")
+        logger.info("Estimating we can run %s concurrent tasks", process_count)
 
     # We need to know how many terrains there are. We could get this from the crosswalk
     # table, but we can also work out the unique values ourselves. In practice this is
