@@ -6,21 +6,24 @@ from glob import glob
 
 import pandas as pd
 
-ESSENTIAL_COLUMNS = {
+COLUMNS = [
     "id_no",
+    "assessment_id",
     "class_name",
     "family_name",
     "scientific_name",
+    "full_habitat_code",
+    "category",
     "season",
     "elevation_upper",
     "elevation_lower",
-    "full_habitat_code",
     "range_total",
-    "dem_total",
     "hab_total",
+    "dem_total",
     "aoh_total",
-    "prevalence"
-}
+    "prevalence",
+    "error",
+]
 
 def collate_data(
     aoh_results: str,
@@ -32,18 +35,20 @@ def collate_data(
         sys.exit(-1)
 
     res = []
-    keys = None
+    all_keys = set()
+    for manifest in manifests:
+        with open(manifest, encoding="utf-8") as f:
+            data = json.load(f)
+            all_keys |= set(data.keys())
+    assert set(COLUMNS).issubset(all_keys)
+
+    keys = COLUMNS + list(all_keys - set(COLUMNS))
     for manifest in manifests:
         with open(manifest, encoding="utf-8") as f:
             data = json.load(f)
             row = []
-            if keys is None:
-                keys = list(data.keys())
-                assert ESSENTIAL_COLUMNS.issubset(set(keys))
-            else:
-                assert keys == list(data.keys())
             for k in keys:
-                row.append(data[k])
+                row.append(data.get(k, ''))
             row.append(len(data['full_habitat_code'].split('|')))
             res.append(row)
     df = pd.DataFrame(res, columns=keys + ['n_habitats'])
