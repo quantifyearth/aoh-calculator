@@ -26,7 +26,7 @@ def enumerate_subset(
     with RasterLayer.layer_from_file(habitat_path) as habitat_map:
         blocksize = min(BLOCKSIZE, habitat_map.window.ysize - offset)
         data = habitat_map.read_array(0, offset, habitat_map.window.xsize, blocksize)
-        values = np.unqiue(data)
+        values = np.unique(data)
         without_nans = values[~np.isnan(values)]
         res = {int(x) for x in without_nans}
     return res
