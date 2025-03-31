@@ -8,6 +8,7 @@ from functools import partial
 from multiprocessing import Pool, cpu_count
 from typing import Optional, Set
 
+import numpy as np
 import psutil
 from osgeo import gdal
 from yirgacheffe.layers import RasterLayer  # type: ignore
@@ -21,16 +22,19 @@ def enumerate_subset(
     habitat_path: str,
     offset: int,
 ) -> Set[int]:
+    gdal.SetCacheMax(1 * 1024 * 1024 * 1024)
     with RasterLayer.layer_from_file(habitat_path) as habitat_map:
         blocksize = min(BLOCKSIZE, habitat_map.window.ysize - offset)
         data = habitat_map.read_array(0, offset, habitat_map.window.xsize, blocksize)
-        values = data.flatten()
-        res = set(values)
+        values = np.unqiue(data)
+        without_nans = values[~np.isnan(values)]
+        res = {int(x) for x in without_nans}
     return res
 
 def enumerate_terrain_types(
     habitat_path: str
 ) -> Set[int]:
+    gdal.SetCacheMax(1 * 1024 * 1024 * 1024)
     with RasterLayer.layer_from_file(habitat_path) as habitat_map:
         ysize = habitat_map.window.ysize
     blocks = range(0, ysize, BLOCKSIZE)
