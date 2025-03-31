@@ -66,6 +66,10 @@ def aohcalc(
         sys.exit(1)
     assert filtered_species_info.shape[0] == 1
 
+    # We drop the geometry as that's a lot of data, more than the raster often
+    species_info = filtered_species_info.drop('geometry', axis=1)
+    manifest = {k: v[0] for (k, v) in species_info.items()}
+
     species_id = filtered_species_info.id_no.values[0]
     try:
         seasonality = filtered_species_info.season.values[0]
@@ -82,11 +86,17 @@ def aohcalc(
         raw_habitats = set(filtered_species_info.full_habitat_code.values[0].split('|'))
     except (AttributeError, TypeError):
         logger.error("Species data missing one or more needed attributes: %s", filtered_species_info)
+        manifest["error"] = "Species data missing one or more needed attributes"
+        with open(manifest_filename, 'w', encoding="utf-8") as f:
+            json.dump(manifest, f)
         sys.exit()
 
     habitat_list = crosswalk_habitats(crosswalk_table, raw_habitats)
     if force_habitat and len(habitat_list) == 0:
         logger.error("No habitats found in crosswalk! %s_%s had %s", species_id, seasonality, raw_habitats)
+        manifest["error"] = "No habitats found in crosswalk"
+        with open(manifest_filename, 'w', encoding="utf-8") as f:
+            json.dump(manifest, f)
         sys.exit()
 
     ideal_habitat_map_files = [os.path.join(habitat_path, f"lcc_{x}.tif") for x in habitat_list]
@@ -94,6 +104,9 @@ def aohcalc(
     if force_habitat and len(habitat_map_files) == 0:
         logger.error("No matching habitat layers found for %s_%s in %s: %s",
                      species_id, seasonality, habitat_path, habitat_list)
+        manifest["error"] = "No matching habitat layers found"
+        with open(manifest_filename, 'w', encoding="utf-8") as f:
+            json.dump(manifest, f)
         sys.exit()
 
     habitat_maps = [RasterLayer.layer_from_file(x) for x in habitat_map_files]
@@ -119,9 +132,6 @@ def aohcalc(
         intersection = RasterLayer.find_intersection(layers)
     except ValueError:
         logger.warning("Failed to find intersection for %s: %s",  species_data_path, range_map.area)
-        for layer in layers:
-            print(f"\t{layer.name}: {layer.area}")
-        print("Just using range")
 
         result = RasterLayer.empty_raster_layer_like(
             area_map,
@@ -129,7 +139,19 @@ def aohcalc(
             compress=True,
         )
         with alive_bar(manual=True) as bar:
-            (range_map * area_map).save(result, callback=bar)
+            range_total = (range_map * area_map).save(result, and_sum=True, callback=bar)
+
+        manifest.update({
+            'range_total': range_total,
+            'hab_total': 0,
+            'dem_total': 0,
+            'aoh_total': range_total,
+            'prevalence': 1.0,
+            'error': 'Failed to find intersection'
+        })
+        with open(manifest_filename, 'w', encoding="utf-8") as f:
+            json.dump(manifest, f)
+
         return
 
     for layer in layers:
@@ -184,10 +206,6 @@ def aohcalc(
 
     with alive_bar(manual=True) as bar:
         aoh_total = calc.save(result, and_sum=True, callback=bar)
-
-    # We drop the geometry as that's a lot of data, more than the raster often
-    species_info = filtered_species_info.drop('geometry', axis=1)
-    manifest = {k: v[0] for (k, v) in species_info.items()}
 
     manifest.update({
         'range_total': range_total,

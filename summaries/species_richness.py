@@ -34,7 +34,7 @@ def stage_1_worker(
                 calc = calc | (r != 0.0)
         else:
             calc = rasters[0] != 0.0
-        partial = RasterLayer.empty_raster_layer_like(rasters[0], datatype=gdal.GDT_Int16)
+        partial = RasterLayer.empty_raster_layer_like(rasters[0], datatype=gdal.GDT_UInt16)
         calc.save(partial)
 
         if merged_result is None:
