@@ -16,7 +16,6 @@ from alive_progress import alive_bar
 from osgeo import gdal
 gdal.UseExceptions()
 
-
 import yirgacheffe # pylint: disable=C0412,C0413
 yirgacheffe.constants.YSTEP = 2048
 
@@ -115,7 +114,6 @@ def aohcalc(
     max_elevation_map = RasterLayer.layer_from_file(max_elevation_path)
     range_map = VectorLayer.layer_from_file_like(
         species_data_path,
-        None,
         min_elevation_map
     )
 
