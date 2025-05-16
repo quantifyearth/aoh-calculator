@@ -22,7 +22,6 @@ COLUMNS = [
     "dem_total",
     "aoh_total",
     "prevalence",
-    "error",
 ]
 
 def collate_data(
