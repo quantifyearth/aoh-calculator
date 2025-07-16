@@ -16,3 +16,4 @@ git+https://github.com/quantifyearth/pyshark
 pylint
 mypy
 pytest
+types-psutil

@@ -11,7 +11,7 @@ from typing import Optional, Set
 
 import numpy as np
 import psutil
-from osgeo import gdal
+from osgeo import gdal   # type: ignore
 from yirgacheffe.layers import RasterLayer  # type: ignore
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(me
 BLOCKSIZE = 512
 
 def enumerate_subset(
-    habitat_path: str,
+    habitat_path: Path,
     offset: int,
 ) -> Set[int]:
     gdal.SetCacheMax(1 * 1024 * 1024 * 1024)
@@ -33,7 +33,7 @@ def enumerate_subset(
     return res
 
 def enumerate_terrain_types(
-    habitat_path: str
+    habitat_path: Path
 ) -> Set[int]:
     gdal.SetCacheMax(1 * 1024 * 1024 * 1024)
     with RasterLayer.layer_from_file(habitat_path) as habitat_map:
@@ -48,10 +48,10 @@ def enumerate_terrain_types(
     return superset
 
 def make_single_type_map(
-    habitat_path: str,
+    habitat_path: Path,
     pixel_scale: Optional[float],
     target_projection: Optional[str],
-    output_directory_path: str,
+    output_directory_path: Path,
     habitat_value: int | float,
 ) -> None:
     logger.info("Building layer for %s...", habitat_value)

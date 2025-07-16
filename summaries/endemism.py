@@ -7,15 +7,16 @@ import os
 import sys
 import tempfile
 import time
-from glob import glob
+from pathlib import Path
 from multiprocessing import Manager, Process, Queue, cpu_count
+from typing import Dict, Optional, Set
 
 import numpy as np
-from osgeo import gdal
-from yirgacheffe.layers import RasterLayer
-import yirgacheffe.operators as yo
+from osgeo import gdal # type: ignore
+from yirgacheffe.layers import RasterLayer # type: ignore
+import yirgacheffe.operators as yo # type: ignore
 
-def geometric_sum(raster: RasterLayer):
+def geometric_sum(raster: RasterLayer) -> Optional[RasterLayer]:
     aoh = raster.sum()
     if aoh > 0.0:
         return yo.log(yo.where(raster == 0.0, float('nan'), raster) / aoh)
@@ -23,10 +24,10 @@ def geometric_sum(raster: RasterLayer):
 
 def stage_1_worker(
     filename: str,
-    result_dir: str,
+    result_dir: Path,
     input_queue: Queue,
 ) -> None:
-    output_tif = os.path.join(result_dir, filename)
+    output_tif = result_dir / filename
 
     merged_result = None
 
@@ -49,12 +50,12 @@ def stage_1_worker(
                     case None, None:
                         continue
                     case a, None:
-                        combined = a.nan_to_num()
+                        combined = a.nan_to_num() # type: ignore
                     case None, b:
-                        combined = b.nan_to_num()
+                        combined = b.nan_to_num() # type: ignore
                     case s1, s2:
-                        levelled_s1 = s1.nan_to_num(nan=np.inf * -1)
-                        levelled_s2 = s2.nan_to_num(nan=np.inf * -1)
+                        levelled_s1 = s1.nan_to_num(nan=np.inf * -1) # type: ignore
+                        levelled_s2 = s2.nan_to_num(nan=np.inf * -1) # type: ignore
                         levelled_combined = yo.maximum(levelled_s1, levelled_s2)
                         combined = levelled_combined.nan_to_num(neginf=0.0)
 
@@ -91,10 +92,10 @@ def stage_1_worker(
 
 def stage_2_worker(
     filename: str,
-    result_dir: str,
+    result_dir: Path,
     input_queue: Queue,
 ) -> None:
-    output_tif = os.path.join(result_dir, filename)
+    output_tif = result_dir / filename
 
     merged_result = None
 
@@ -124,22 +125,20 @@ def stage_2_worker(
         merged_result.save(final)
 
 def endemism(
-    aohs_dir: str,
-    species_richness_path: str,
-    output_path: str,
+    aohs_dir: Path,
+    species_richness_path: Path,
+    output_path: Path,
     processes_count: int
 ) -> None:
-    output_dir, _ = os.path.split(output_path)
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(output_path.parent, exist_ok=True)
 
-    aohs = glob("**/*.tif", root_dir=aohs_dir)
+    aohs = list(aohs_dir.glob("**/*.tif"))
     print(f"We found {len(aohs)} AoH rasters")
 
-    species_rasters = {}
+    species_rasters : Dict[str,Set[Path]] = {}
     for raster_path in aohs:
-        speciesid = os.path.basename(raster_path).split('_')[0]
-        full_path = os.path.join(aohs_dir, raster_path)
-        species_rasters[speciesid] = species_rasters.get(speciesid, set()).union({full_path})
+        speciesid = raster_path.name.split('_')[0]
+        species_rasters[speciesid] = species_rasters.get(speciesid, set()).union({raster_path})
     print(f"Species detected: {len(species_rasters)} ")
 
     with tempfile.TemporaryDirectory() as tempdir:
@@ -148,7 +147,7 @@ def endemism(
 
             workers = [Process(target=stage_1_worker, args=(
                 f"{index}.tif",
-                tempdir,
+                Path(tempdir),
                 source_queue
             )) for index in range(processes_count)]
             for worker_process in workers:
@@ -174,11 +173,11 @@ def endemism(
             # here we should have now a set of images in tempdir to merge
             single_worker = Process(target=stage_2_worker, args=(
                 "summed_proportion.tif",
-                tempdir,
+                Path(tempdir),
                 source_queue
             ))
             single_worker.start()
-            nextfiles = [os.path.join(tempdir, x) for x in glob("*.tif", root_dir=tempdir)]
+            nextfiles = Path(tempdir).glob("*.tif")
             for file in nextfiles:
                 source_queue.put(file)
             source_queue.put(None)
@@ -217,21 +216,21 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Calculate species richness")
     parser.add_argument(
         "--aohs_folder",
-        type=str,
+        type=Path,
         required=True,
         dest="aohs",
         help="Folder containing set of AoHs"
     )
     parser.add_argument(
         "--species_richness",
-        type=str,
+        type=Path,
         required=True,
         dest="species_richness",
         help="GeoTIFF containing species richness"
     )
     parser.add_argument(
         "--output",
-        type=str,
+        type=Path,
         required=True,
         dest="output",
         help="Destination GeoTIFF file for results."

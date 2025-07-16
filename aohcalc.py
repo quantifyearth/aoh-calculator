@@ -10,11 +10,11 @@ from typing import Dict, List, Optional, Set
 # import pyshark # pylint: disable=W0611
 import numpy as np
 import pandas as pd
-import yirgacheffe.operators as yo
-from yirgacheffe.layers import RasterLayer, VectorLayer, ConstantLayer, UniformAreaLayer
-from geopandas import gpd
-from alive_progress import alive_bar
-from osgeo import gdal
+import yirgacheffe.operators as yo # type: ignore
+from yirgacheffe.layers import RasterLayer, VectorLayer, ConstantLayer, UniformAreaLayer # type: ignore
+from geopandas import gpd # type: ignore
+from alive_progress import alive_bar # type: ignore
+from osgeo import gdal # type: ignore
 gdal.UseExceptions()
 
 import yirgacheffe # pylint: disable=C0412,C0413
@@ -23,9 +23,9 @@ yirgacheffe.constants.YSTEP = 2048
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(message)s')
 
-def load_crosswalk_table(table_file_name: str) -> Dict[str,List[int]]:
+def load_crosswalk_table(table_file_name: Path) -> Dict[str,List[int]]:
     rawdata = pd.read_csv(table_file_name)
-    result = {}
+    result : Dict[str,List[int]] = {}
     for _, row in rawdata.iterrows():
         code = str(row.code)
         try:

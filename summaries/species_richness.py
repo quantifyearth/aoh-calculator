@@ -5,9 +5,10 @@ import tempfile
 import time
 from pathlib import Path
 from multiprocessing import Manager, Process, Queue, cpu_count
+from typing import Dict, Set
 
-from osgeo import gdal
-from yirgacheffe.layers import RasterLayer
+from yirgacheffe.layers import RasterLayer  # type: ignore
+from yirgacheffe.operators import DataType  # type: ignore
 
 def stage_1_worker(
     filename: str,
@@ -34,7 +35,7 @@ def stage_1_worker(
                 calc = calc | (r != 0.0)
         else:
             calc = rasters[0] != 0.0
-        partial = RasterLayer.empty_raster_layer_like(rasters[0], datatype=gdal.GDT_UInt16)
+        partial = RasterLayer.empty_raster_layer_like(rasters[0], datatype=DataType.UInt16)
         calc.save(partial)
 
         if merged_result is None:
@@ -57,10 +58,10 @@ def stage_1_worker(
 
 def stage_2_worker(
     filename: str,
-    result_dir: str,
+    result_dir: Path,
     input_queue: Queue,
 ) -> None:
-    output_tif = os.path.join(result_dir, filename)
+    output_tif = result_dir / filename
 
     merged_result = None
 
@@ -90,19 +91,18 @@ def stage_2_worker(
         merged_result.save(final)
 
 def species_richness(
-    aohs_dir: str,
-    output_path: str,
+    aohs_dir: Path,
+    output_path: Path,
     processes_count: int
 ) -> None:
-    output_dir, filename = os.path.split(output_path)
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(output_path.parent, exist_ok=True)
 
     aohs = list(Path(aohs_dir).rglob('*.tif'))
     print(f"We found {len(list(aohs))} AoH rasters")
 
-    species_rasters = {}
+    species_rasters : Dict[str,Set[Path]] = {}
     for raster_path in aohs:
-        speciesid = os.path.basename(raster_path).split('_')[0]
+        speciesid = raster_path.name.split('_')[0]
         species_rasters[speciesid] = species_rasters.get(speciesid, set()).union({raster_path})
     print(f"Species detected: {len(species_rasters)} ")
 
@@ -112,7 +112,7 @@ def species_richness(
 
             workers = [Process(target=stage_1_worker, args=(
                 f"{index}.tif",
-                tempdir,
+                Path(tempdir),
                 source_queue
             )) for index in range(processes_count)]
             for worker_process in workers:
@@ -137,8 +137,8 @@ def species_richness(
 
             # here we should have now a set of images in tempdir to merge
             single_worker = Process(target=stage_2_worker, args=(
-                filename,
-                output_dir,
+                output_path.name,
+                output_path.parent,
                 source_queue
             ))
             single_worker.start()
@@ -163,14 +163,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Calculate species richness")
     parser.add_argument(
         "--aohs_folder",
-        type=str,
+        type=Path,
         required=True,
         dest="aohs",
         help="Folder containing set of AoHs"
     )
     parser.add_argument(
         "--output",
-        type=str,
+        type=Path,
         required=True,
         dest="output",
         help="Destination GeoTIFF file for results."
