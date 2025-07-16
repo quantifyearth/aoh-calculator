@@ -6,6 +6,7 @@ import shutil
 import tempfile
 from functools import partial
 from multiprocessing import Pool, cpu_count
+from pathlib import Path
 from typing import Optional, Set
 
 import numpy as np
@@ -83,13 +84,13 @@ def make_single_type_map(
                 ))
 
         logger.info("Saving %s...", habitat_value)
-        shutil.move(tempname, os.path.join(output_directory_path, filename))
+        shutil.move(tempname, output_directory_path / filename)
 
 def habitat_process(
-    habitat_path: str,
+    habitat_path: Path,
     pixel_scale: Optional[float],
     target_projection: Optional[str],
-    output_directory_path: str,
+    output_directory_path: Path,
     process_count: int
 ) -> None:
     os.makedirs(output_directory_path, exist_ok=True)
@@ -141,7 +142,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Downsample habitat map to raster per terrain type.")
     parser.add_argument(
         '--habitat',
-        type=str,
+        type=Path,
         help="Path of initial combined habitat map.",
         required=True,
         dest="habitat_path"
@@ -163,7 +164,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--output",
-        type=str,
+        type=Path,
         required=True,
         dest="output_path",
         help="Destination folder for raster files."

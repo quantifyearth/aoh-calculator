@@ -4,6 +4,7 @@ import math
 import os
 import logging
 import sys
+from pathlib import Path
 from typing import Dict, List, Optional, Set
 
 # import pyshark # pylint: disable=W0611
@@ -44,14 +45,14 @@ def crosswalk_habitats(crosswalk_table: Dict[str, List[int]], raw_habitats: Set[
     return result
 
 def aohcalc(
-    habitat_path: str,
-    min_elevation_path: str,
-    max_elevation_path: str,
-    area_path: Optional[str],
-    crosswalk_path: str,
-    species_data_path: str,
+    habitat_path: Path,
+    min_elevation_path: Path,
+    max_elevation_path: Path,
+    area_path: Optional[Path],
+    crosswalk_path: Path,
+    species_data_path: Path,
     force_habitat: bool,
-    output_directory_path: str,
+    output_directory_path: Path,
 ) -> None:
     os.makedirs(output_directory_path, exist_ok=True)
 
@@ -72,12 +73,12 @@ def aohcalc(
     species_id = filtered_species_info.id_no.values[0]
     try:
         seasonality = filtered_species_info.season.values[0]
-        result_filename = os.path.join(output_directory_path, f"{species_id}_{seasonality}.tif")
-        manifest_filename = os.path.join(output_directory_path, f"{species_id}_{seasonality}.json")
+        result_filename = output_directory_path / f"{species_id}_{seasonality}.tif"
+        manifest_filename = output_directory_path / f"{species_id}_{seasonality}.json"
     except AttributeError:
         seasonality = None
-        result_filename = os.path.join(output_directory_path, f"{species_id}.tif")
-        manifest_filename = os.path.join(output_directory_path, f"{species_id}.json")
+        result_filename = output_directory_path / f"{species_id}.tif"
+        manifest_filename = output_directory_path / f"{species_id}.json"
 
     try:
         elevation_lower = math.floor(float(filtered_species_info.elevation_lower.values[0]))
@@ -98,8 +99,8 @@ def aohcalc(
             json.dump(manifest, f)
         sys.exit()
 
-    ideal_habitat_map_files = [os.path.join(habitat_path, f"lcc_{x}.tif") for x in habitat_list]
-    habitat_map_files = [x for x in ideal_habitat_map_files if os.path.exists(x)]
+    ideal_habitat_map_files = [habitat_path / f"lcc_{x}.tif" for x in habitat_list]
+    habitat_map_files = [x for x in ideal_habitat_map_files if x.exists()]
     if force_habitat and len(habitat_map_files) == 0:
         logger.error("No matching habitat layers found for %s_%s in %s: %s",
                      species_id, seasonality, habitat_path, habitat_list)
@@ -220,28 +221,28 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Area of habitat calculator.")
     parser.add_argument(
         '--habitats',
-        type=str,
+        type=Path,
         help="Directory of habitat rasters, one per habitat class.",
         required=True,
         dest="habitat_path"
     )
     parser.add_argument(
         '--elevation-min',
-        type=str,
+        type=Path,
         help="Minimum elevation raster.",
         required=True,
         dest="min_elevation_path",
     )
     parser.add_argument(
         '--elevation-max',
-        type=str,
+        type=Path,
         help="Maximum elevation raster",
         required=True,
         dest="max_elevation_path",
     )
     parser.add_argument(
         '--area',
-        type=str,
+        type=Path,
         help="Optional area per pixel raster. Can be 1xheight.",
         required=False,
         dest="area_path",
@@ -255,7 +256,7 @@ def main() -> None:
     )
     parser.add_argument(
         '--speciesdata',
-        type=str,
+        type=Path,
         help="Single species/seasonality geojson.",
         required=True,
         dest="species_data_path"
@@ -268,7 +269,7 @@ def main() -> None:
     )
     parser.add_argument(
         '--output',
-        type=str,
+        type=Path,
         help='Directory where area geotiffs should be stored.',
         required=True,
         dest='output_path',
