@@ -45,6 +45,7 @@ def enumerate_terrain_types(
     superset = set()
     for s in sets:
         superset.update(s)
+    superset.remove(0)
     return superset
 
 def make_single_type_map(
@@ -116,7 +117,7 @@ def habitat_process(
         estimated_memory = pixel_size * pixels
 
         mem_stats = psutil.virtual_memory()
-        max_copies = math.floor((mem_stats.available * 0.5) / estimated_memory)
+        max_copies = math.floor((mem_stats.available * 0.8) / estimated_memory)
         if max_copies == 0:
             logger.warning("Low memory")
             max_copies = 1
