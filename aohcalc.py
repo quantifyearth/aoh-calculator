@@ -150,20 +150,12 @@ def aohcalc(
         })
         with open(manifest_filename, 'w', encoding="utf-8") as f:
             json.dump(manifest, f)
-
         return
 
     for layer in layers:
         layer.set_window_for_intersection(intersection)
 
     range_total = (range_map * area_map).sum()
-
-    result = RasterLayer.empty_raster_layer_like(
-        min_elevation_map,
-        filename=result_filename,
-        compress=True,
-        datatype=gdal.GDT_Float32
-    )
 
     # Habitat evaluation. In the IUCN Redlist Technical Working Group recommendations, if there are no defined
     # habitats, then we revert to range. If the area of the habitat map filtered by species habitat is zero then we
@@ -180,7 +172,16 @@ def aohcalc(
         filtered_by_habtitat = range_map * combined_habitat
         if filtered_by_habtitat.sum() == 0:
             if force_habitat:
-                print("No matching habitats, not generating AoH")
+                manifest.update({
+                    'range_total': range_total,
+                    'hab_total': 0,
+                    'dem_total': 0,
+                    'aoh_total': 0,
+                    'prevalence': 0,
+                    'error': 'No habitat found and --force-habitat specified'
+                })
+                with open(manifest_filename, 'w', encoding="utf-8") as f:
+                    json.dump(manifest, f)
                 return
             else:
                 filtered_by_habtitat = range_map
@@ -203,8 +204,14 @@ def aohcalc(
 
     calc = filtered_by_both * area_map
 
-    with alive_bar(manual=True) as bar:
-        aoh_total = calc.save(result, and_sum=True, callback=bar)
+    with RasterLayer.empty_raster_layer_like(
+        min_elevation_map,
+        filename=result_filename,
+        compress=True,
+        datatype=gdal.GDT_Float32
+    ) as aoh_raster:
+        with alive_bar(manual=True) as bar:
+            aoh_total = calc.save(aoh_raster, and_sum=True, callback=bar)
 
     manifest.update({
         'range_total': range_total,
