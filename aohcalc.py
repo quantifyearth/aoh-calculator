@@ -157,13 +157,6 @@ def aohcalc(
 
     range_total = (range_map * area_map).sum()
 
-    result = RasterLayer.empty_raster_layer_like(
-        min_elevation_map,
-        filename=result_filename,
-        compress=True,
-        datatype=gdal.GDT_Float32
-    )
-
     # Habitat evaluation. In the IUCN Redlist Technical Working Group recommendations, if there are no defined
     # habitats, then we revert to range. If the area of the habitat map filtered by species habitat is zero then we
     # similarly revert to range as the assumption is that there is an error in the habitat coding.
@@ -211,8 +204,14 @@ def aohcalc(
 
     calc = filtered_by_both * area_map
 
-    with alive_bar(manual=True) as bar:
-        aoh_total = calc.save(result, and_sum=True, callback=bar)
+    with RasterLayer.empty_raster_layer_like(
+        min_elevation_map,
+        filename=result_filename,
+        compress=True,
+        datatype=gdal.GDT_Float32
+    ) as aoh_raster:
+        with alive_bar(manual=True) as bar:
+            aoh_total = calc.save(aoh_raster, and_sum=True, callback=bar)
 
     manifest.update({
         'range_total': range_total,
