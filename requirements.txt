@@ -17,3 +17,4 @@ pylint
 mypy
 pytest
 types-psutil
+pandas-stubs
