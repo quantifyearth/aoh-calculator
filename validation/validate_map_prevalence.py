@@ -4,7 +4,7 @@
 import argparse
 
 import pandas as pd
-import pymer4
+import pymer4 # type: ignore
 
 def model_validation(aoh_df: pd.DataFrame) -> pd.DataFrame:
     # Ger rid of any where we had no AoH

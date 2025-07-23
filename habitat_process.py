@@ -6,11 +6,12 @@ import shutil
 import tempfile
 from functools import partial
 from multiprocessing import Pool, cpu_count
+from pathlib import Path
 from typing import Optional, Set
 
 import numpy as np
 import psutil
-from osgeo import gdal
+from osgeo import gdal   # type: ignore
 from yirgacheffe.layers import RasterLayer  # type: ignore
 
 logger = logging.getLogger(__name__)
@@ -19,7 +20,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(me
 BLOCKSIZE = 512
 
 def enumerate_subset(
-    habitat_path: str,
+    habitat_path: Path,
     offset: int,
 ) -> Set[int]:
     gdal.SetCacheMax(1 * 1024 * 1024 * 1024)
@@ -32,7 +33,7 @@ def enumerate_subset(
     return res
 
 def enumerate_terrain_types(
-    habitat_path: str
+    habitat_path: Path
 ) -> Set[int]:
     gdal.SetCacheMax(1 * 1024 * 1024 * 1024)
     with RasterLayer.layer_from_file(habitat_path) as habitat_map:
@@ -44,13 +45,17 @@ def enumerate_terrain_types(
     superset = set()
     for s in sets:
         superset.update(s)
+    try:
+        superset.remove(0)
+    except KeyError:
+        pass
     return superset
 
 def make_single_type_map(
-    habitat_path: str,
+    habitat_path: Path,
     pixel_scale: Optional[float],
     target_projection: Optional[str],
-    output_directory_path: str,
+    output_directory_path: Path,
     habitat_value: int | float,
 ) -> None:
     logger.info("Building layer for %s...", habitat_value)
@@ -83,13 +88,13 @@ def make_single_type_map(
                 ))
 
         logger.info("Saving %s...", habitat_value)
-        shutil.move(tempname, os.path.join(output_directory_path, filename))
+        shutil.move(tempname, output_directory_path / filename)
 
 def habitat_process(
-    habitat_path: str,
+    habitat_path: Path,
     pixel_scale: Optional[float],
     target_projection: Optional[str],
-    output_directory_path: str,
+    output_directory_path: Path,
     process_count: int
 ) -> None:
     os.makedirs(output_directory_path, exist_ok=True)
@@ -115,7 +120,7 @@ def habitat_process(
         estimated_memory = pixel_size * pixels
 
         mem_stats = psutil.virtual_memory()
-        max_copies = math.floor((mem_stats.available * 0.5) / estimated_memory)
+        max_copies = math.floor((mem_stats.available * 0.8) / estimated_memory)
         if max_copies == 0:
             logger.warning("Low memory")
             max_copies = 1
@@ -141,7 +146,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Downsample habitat map to raster per terrain type.")
     parser.add_argument(
         '--habitat',
-        type=str,
+        type=Path,
         help="Path of initial combined habitat map.",
         required=True,
         dest="habitat_path"
@@ -163,7 +168,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--output",
-        type=str,
+        type=Path,
         required=True,
         dest="output_path",
         help="Destination folder for raster files."
