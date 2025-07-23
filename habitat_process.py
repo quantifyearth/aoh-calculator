@@ -45,7 +45,10 @@ def enumerate_terrain_types(
     superset = set()
     for s in sets:
         superset.update(s)
-    superset.remove(0)
+    try:
+        superset.remove(0)
+    except KeyError:
+        pass
     return superset
 
 def make_single_type_map(
