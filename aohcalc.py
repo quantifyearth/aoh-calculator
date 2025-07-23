@@ -150,7 +150,6 @@ def aohcalc(
         })
         with open(manifest_filename, 'w', encoding="utf-8") as f:
             json.dump(manifest, f)
-
         return
 
     for layer in layers:
@@ -180,7 +179,16 @@ def aohcalc(
         filtered_by_habtitat = range_map * combined_habitat
         if filtered_by_habtitat.sum() == 0:
             if force_habitat:
-                print("No matching habitats, not generating AoH")
+                manifest.update({
+                    'range_total': range_total,
+                    'hab_total': 0,
+                    'dem_total': 0,
+                    'aoh_total': 0,
+                    'prevalence': 0,
+                    'error': 'No habitat found and --force-habitat specified'
+                })
+                with open(manifest_filename, 'w', encoding="utf-8") as f:
+                    json.dump(manifest, f)
                 return
             else:
                 filtered_by_habtitat = range_map
