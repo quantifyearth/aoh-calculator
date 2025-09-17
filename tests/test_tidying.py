@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 
-from cleaning import tidy_data
+from aoh.cleaning import tidy_data
 
 @pytest.mark.parametrize("value,expected",
     [

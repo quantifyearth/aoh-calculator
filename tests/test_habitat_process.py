@@ -6,7 +6,7 @@ import numpy as np
 import yirgacheffe as yg
 from osgeo import gdal   # type: ignore
 
-from habitat_process import enumerate_terrain_types, _make_single_type_map
+from aoh.habitat_process import enumerate_terrain_types, _make_single_type_map
 
 def generate_habitat_map(
     output_path: Path,
