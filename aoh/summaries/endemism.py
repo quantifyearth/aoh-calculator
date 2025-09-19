@@ -19,7 +19,7 @@ import yirgacheffe.operators as yo # type: ignore
 def geometric_sum(raster: RasterLayer) -> Optional[RasterLayer]:
     aoh = raster.sum()
     if aoh > 0.0:
-        return yo.log(yo.where(raster == 0.0, float('nan'), raster) / aoh)
+        return yo.log(yo.where(raster == 0.0, float('nan'), raster) / aoh)  # type: ignore[no-any-return]
     return None
 
 def stage_1_worker(

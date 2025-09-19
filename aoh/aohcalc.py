@@ -7,10 +7,7 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Union
 
-# import pyshark # pylint: disable=W0611
-import numpy as np
 import pandas as pd
-import yirgacheffe.operators as yo # type: ignore
 from yirgacheffe.layers import RasterLayer, VectorLayer, ConstantLayer, UniformAreaLayer # type: ignore
 from geopandas import gpd # type: ignore
 from alive_progress import alive_bar # type: ignore

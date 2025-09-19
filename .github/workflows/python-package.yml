@@ -19,26 +19,54 @@ jobs:
         python-version: ["3.10"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
+
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v3
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install system
+
+      - name: Install system dependencies
         run: |
           apt-get update -qqy
-          apt-get install -y git python3-pip
-      - name: Install dependencies
+          apt-get install -y git python3-pip r-base libtirpc-dev
+
+      - name: Install R dependencies
+        run: R -e "install.packages(c('lme4', 'lmerTest'), repos='https://cran.rstudio.com/')" || true
+
+      - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install gdal[numpy]==3.11.0
-          python -m pip install -r requirements.txt
+          python -m pip install 'gdal[numpy]==3.11.0'
+          python -m pip install -e .[dev,validation]
+
       - name: Lint with pylint
-        run: |
-          python3 -m pylint .
-      - name: Test with pytest
-        run: |
-          python3 -m pytest
+        run: python3 -m pylint .
+
       - name: Type checking
+        run: python3 -m mypy .
+
+      - name: Test with pytest
+        run: python3 -m pytest --cov=aoh -vv
+
+      - name: Test CLI tools
         run: |
-          python3 -m mypy .
+          aoh-calc --help
+          aoh-habitat-process --help
+          aoh-species-richness --help
+          aoh-endemism --help
+          aoh-collate-data --help
+          aoh-validate-prevalence --help
+
+      - name: Test package imports
+        run: |
+          python3 -c "import aoh; print('✅ Package imports work')"
+          python3 -c "from aoh import tidy_data; print('✅ Core functions work')"
+          python3 -c "from aoh.summaries import species_richness; print('✅ Summaries work')"
+          python3 -c "from aoh.validation import collate_data; print('✅ Validation works')"
+
+      - name: Build pip package
+        run: python3 -m build
+
+      - name: Check with twine
+        run: twine check dist/*

@@ -4,9 +4,17 @@
 import argparse
 
 import pandas as pd
-import pymer4 # type: ignore
+
+try:
+    import pymer4 # type: ignore
+except (ImportError, ValueError):
+    pymer4 = None
 
 def model_validation(aoh_df: pd.DataFrame) -> pd.DataFrame:
+    if pymer4 is None:
+        raise ImportError("pymer4 is required for model validation but not installed. "
+                         "This requires R to be installed on the system.")
+
     # Ger rid of any where we had no AoH
     aoh_df = aoh_df[aoh_df.prevalence > 0]
 
@@ -53,7 +61,7 @@ def model_validation(aoh_df: pd.DataFrame) -> pd.DataFrame:
         print(f"\toutliers: {len(klass_outliers)}")
         per_class_df.append(klass_outliers)
 
-    return pd.concat(per_class_df)
+    return pd.concat(per_class_df)  # type: ignore[no-any-return]
 
 def validate_map_prevalence(
     collated_data_path: str,

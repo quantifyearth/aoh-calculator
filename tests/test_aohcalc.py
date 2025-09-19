@@ -12,7 +12,7 @@ import pytest
 import yirgacheffe as yg
 from osgeo import gdal # type: ignore
 
-from aohcalc import aohcalc
+from aoh.aohcalc import aohcalc
 
 def generate_habitat_maps(
     output_dir: Path,
