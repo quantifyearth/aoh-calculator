@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(me
 
 BLOCKSIZE = 512
 
-def enumerate_subset(
+def _enumerate_subset(
     habitat_path: Path,
     offset: int,
 ) -> Set[int]:
@@ -41,7 +41,7 @@ def enumerate_terrain_types(
     blocks = range(0, ysize, BLOCKSIZE)
     logger.info("Enumerating habitat classes in raster...")
     with Pool(processes=int(cpu_count() / 2)) as pool:
-        sets = pool.map(partial(enumerate_subset, habitat_path), blocks)
+        sets = pool.map(partial(_enumerate_subset, habitat_path), blocks)
     superset = set()
     for s in sets:
         superset.update(s)
@@ -51,7 +51,7 @@ def enumerate_terrain_types(
         pass
     return superset
 
-def make_single_type_map(
+def _make_single_type_map(
     habitat_path: Path,
     pixel_scale: Optional[float],
     target_projection: Optional[str],
@@ -135,12 +135,12 @@ def habitat_process(
     if max_copies > 1:
         with Pool(processes=process_count) as pool:
             pool.map(
-                partial(make_single_type_map, habitat_path, pixel_scale, target_projection, output_directory_path),
+                partial(_make_single_type_map, habitat_path, pixel_scale, target_projection, output_directory_path),
                 habitats
             )
     else:
         for habitat in habitats:
-            make_single_type_map(habitat_path, pixel_scale, target_projection, output_directory_path, habitat)
+            _make_single_type_map(habitat_path, pixel_scale, target_projection, output_directory_path, habitat)
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Downsample habitat map to raster per terrain type.")

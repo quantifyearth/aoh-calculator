@@ -89,7 +89,7 @@ def aohcalc(
         manifest["error"] = "Species data missing one or more needed attributes"
         with open(manifest_filename, 'w', encoding="utf-8") as f:
             json.dump(manifest, f)
-        sys.exit()
+        return
 
     habitat_list = crosswalk_habitats(crosswalk_table, raw_habitats)
     if force_habitat and len(habitat_list) == 0:
@@ -97,7 +97,7 @@ def aohcalc(
         manifest["error"] = "No habitats found in crosswalk"
         with open(manifest_filename, 'w', encoding="utf-8") as f:
             json.dump(manifest, f)
-        sys.exit()
+        return
 
     ideal_habitat_map_files = [habitat_path / f"lcc_{x}.tif" for x in habitat_list]
     habitat_map_files = [x for x in ideal_habitat_map_files if x.exists()]
@@ -107,7 +107,7 @@ def aohcalc(
         manifest["error"] = "No matching habitat layers found"
         with open(manifest_filename, 'w', encoding="utf-8") as f:
             json.dump(manifest, f)
-        sys.exit()
+        return
 
     habitat_maps = [RasterLayer.layer_from_file(x) for x in habitat_map_files]
 
