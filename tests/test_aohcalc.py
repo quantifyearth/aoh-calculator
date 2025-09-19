@@ -5,12 +5,12 @@ import tempfile
 from pathlib import Path
 from typing import Dict, Set, Tuple
 
-import geojson
+import geojson # type: ignore
 import numpy as np
 import pandas as pd
 import pytest
 import yirgacheffe as yg
-from osgeo import gdal
+from osgeo import gdal # type: ignore
 
 from aohcalc import aohcalc
 
@@ -81,7 +81,7 @@ def generate_area_map(
 
 def generate_crosswalk(
     output_path: Path,
-    values: Dict[int,Set[int]],
+    values: Dict[str,Set[int]],
 ) -> None:
     res = []
     for k, v in values.items():

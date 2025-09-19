@@ -5,7 +5,7 @@ import os
 import logging
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Union
 
 # import pyshark # pylint: disable=W0611
 import numpy as np
@@ -118,7 +118,7 @@ def aohcalc(
         min_elevation_map
     )
 
-    area_map = ConstantLayer(1.0)
+    area_map : Union[ConstantLayer, RasterLayer, UniformAreaLayer] = ConstantLayer(1.0)
     if area_path:
         try:
             area_map = UniformAreaLayer.layer_from_file(area_path)

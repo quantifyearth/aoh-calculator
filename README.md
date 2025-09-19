@@ -63,7 +63,7 @@ To calculate the AoH we need the following information:
 - Habitats: A directory containing a series of GeoTIFFs, one per habitat class, indicating which pixels contain that habitat. Float values indicate partial occupancy.
 - Elevation-max/Elevation-min: Two GeoTIFFs, in which the highest and lowest elevation for that pixel is recorded. Must be in same units as those in the GeoJSON.
 - Crosswalk: A crosswalk table in CSV format that converts between the IUCN habitat classes and names of the habitat raster layers.
-- Area: An optiona raster containing the area of each pixel, which will be multipled with the AoH raster before saving to produce a result in area rahter than pixel occupancy.
+- Area: An optiona raster containing the area of each pixel, which will be multipled with the AoH raster before saving to produce a result in area rather than pixel occupancy.
 - Force habitat: An optional flag that means rather than following the IUCN RLTWG guidelines, whereby if there is zero area in the habitat layer after filtering for species habitat preferneces we should revert to range, this flag will keep the result as zero. This is to allow for evaluation of scenarios that might lead to extinction via land use chnages.
 - Output directory - Two files will be output to this directory: an AoH raster with the format `{id_no}_{seasonal}.tif` and a manifest containing information about the raster `{id_no}_{seasonal}.json`.
 

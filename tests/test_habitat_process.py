@@ -4,7 +4,7 @@ from typing import Set, Tuple
 
 import numpy as np
 import yirgacheffe as yg
-from osgeo import gdal
+from osgeo import gdal   # type: ignore
 
 from habitat_process import enumerate_terrain_types, _make_single_type_map
 
