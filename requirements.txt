@@ -18,3 +18,4 @@ mypy
 pytest
 types-psutil
 pandas-stubs
+geojson
