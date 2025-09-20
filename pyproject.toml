@@ -39,12 +39,14 @@ dependencies = [
 [project.optional-dependencies]
 validation = [
     "pymer4==0.8.2",
+    "pygbif",
 ]
 dev = [
     "pylint",
     "mypy",
     "pytest",
     "types-psutil",
+    "types-requests",
     "pandas-stubs",
     "geojson",
     "pytest-cov",
@@ -64,6 +66,7 @@ aoh-species-richness = "aoh.summaries.species_richness:main"
 aoh-endemism = "aoh.summaries.endemism:main"
 aoh-collate-data = "aoh.validation.collate_data:main"
 aoh-validate-prevalence = "aoh.validation.validate_map_prevalence:main"
+aoh-fetch-gbif-data = "aoh.validation.fetch_gbif_data:main"
 
 [tool.setuptools]
 packages = ["aoh", "aoh.summaries", "aoh.validation"]

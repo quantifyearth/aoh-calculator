@@ -9,6 +9,7 @@ import pandas as pd
 COLUMNS = [
     "id_no",
     "assessment_id",
+    "assessment_year",
     "class_name",
     "family_name",
     "scientific_name",

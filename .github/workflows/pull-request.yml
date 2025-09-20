@@ -57,6 +57,7 @@ jobs:
           aoh-endemism --help
           aoh-collate-data --help
           aoh-validate-prevalence --help
+          aoh-fetch-gbif-data --help
 
       - name: Test package imports
         run: |
