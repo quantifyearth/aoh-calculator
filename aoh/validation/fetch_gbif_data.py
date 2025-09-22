@@ -11,10 +11,6 @@ import pygbif # type: ignore
 import requests
 from pygbif.occurrences.download import GbifDownload # type: ignore
 
-GBIF_USERNAME = os.environ['GBIF_USERNAME']
-GBIF_EMAIL = os.environ['GBIF_EMAIL']
-GBIF_PASSWORD = os.environ['GBIF_PASSWORD']
-
 def generate_iucn_to_gbif_map(
     collated_data_path: Path,
     output_dir_path: Path,
@@ -129,6 +125,9 @@ def build_point_validation_table(
 
 def fetch_gbif_data(
     collated_data_path: Path,
+    gbif_username : str,
+    gbif_email: str,
+    gbif_password: str,
     output_dir_path: Path,
 ) -> None:
     final_result_path = output_dir_path / "points.csv"
@@ -143,11 +142,11 @@ def fetch_gbif_data(
         sys.exit("No specices in GBIF ID list, aborting")
 
     if not download_key_cache_filename.exists():
-        request = GbifDownload(GBIF_USERNAME, GBIF_EMAIL)
+        request = GbifDownload(gbif_username, gbif_email)
         query = build_gbif_query(map_df)
         request.add_predicate_dict(query)
 
-        download_key = request.post_download(GBIF_USERNAME, GBIF_PASSWORD)
+        download_key = request.post_download(gbif_username, gbif_password)
         download_key_cache_filename = output_dir_path / "download_key"
         with open(download_key_cache_filename, "w", encoding="UTF-8") as f:
             f.write(download_key)
@@ -184,25 +183,65 @@ def fetch_gbif_data(
     )
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Fetch GBIF records for species for validation.")
+    parser = argparse.ArgumentParser(
+        description="Fetch GBIF records for species for validation.",
+        epilog='''
+Environment Variables:
+    GBIF_USERNAME   Username of user's GBIF account.
+    GBIF_EMAIL      E-mail of user's GBIF account.
+    GBIF_PASSWORD   Password of user's GBIF account.
+            ''',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
     parser.add_argument(
         '--collated_aoh_data',
         type=Path,
         help="CSV containing collated AoH data",
         required=True,
-        dest="collated_data_path"
+        dest="collated_data_path",
+    )
+    parser.add_argument(
+        '--gbif_username',
+        type=str,
+        default=os.getenv('GBIF_USERNAME'),
+        help="Username of user's GBIF account. Can also be set in environment.",
+        dest="gbif_username",
+    )
+    parser.add_argument(
+        '--gbif_email',
+        type=str,
+        default=os.getenv('GBIF_EMAIL'),
+        help="E-mail of user's GBIF account. Can also be set in environment.",
+        dest="gbif_email",
+    )
+    parser.add_argument(
+        '--gbif_password',
+        type=str,
+        default=os.getenv('GBIF_PASSWORD'),
+        help="Password of user's GBIF account. Can also be set in environment.",
+        dest="gbif_password",
     )
     parser.add_argument(
         "--output_dir",
         type=Path,
         required=True,
         dest="output_dir_path",
-        help="Destination directory for GBIF data."
+        help="Destination directory for GBIF data.",
     )
     args = parser.parse_args()
 
+    if not args.gbif_username:
+        parser.error('--gbif_username is required (or set GBIF_USERNAME env var)')
+    if not args.gbif_email:
+        parser.error('--gbif_email is required (or set GBIF_EMAIL env var)')
+    if not args.gbif_password:
+        parser.error('--gbif_password is required (or set GBIF_PASSWORD env var)')
+
     fetch_gbif_data(
         args.collated_data_path,
+        args.gbif_username,
+        args.gbif_email,
+        args.gbif_password,
         args.output_dir_path,
     )
 
