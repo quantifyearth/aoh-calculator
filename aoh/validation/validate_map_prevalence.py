@@ -2,6 +2,7 @@
 # Based on R code authored by Franchesca Ridley.
 
 import argparse
+from pathlib import Path
 
 import pandas as pd
 
@@ -64,8 +65,8 @@ def model_validation(aoh_df: pd.DataFrame) -> pd.DataFrame:
     return pd.concat(per_class_df)  # type: ignore[no-any-return]
 
 def validate_map_prevalence(
-    collated_data_path: str,
-    output_path: str,
+    collated_data_path: Path,
+    output_path: Path,
 ) -> None:
     aoh_df = pd.read_csv(collated_data_path)
     outliers = model_validation(aoh_df)
@@ -75,14 +76,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Validate map prevalence.")
     parser.add_argument(
         '--collated_aoh_data',
-        type=str,
+        type=Path,
         help="CSV containing collated AoH data",
         required=True,
         dest="collated_data_path"
     )
     parser.add_argument(
         "--output",
-        type=str,
+        type=Path,
         required=True,
         dest="output_path",
         help="CSV of outliers."

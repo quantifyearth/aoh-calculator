@@ -2,7 +2,7 @@ import argparse
 import json
 import os
 import sys
-from glob import glob
+from pathlib import Path
 
 import pandas as pd
 
@@ -26,16 +26,14 @@ COLUMNS = [
 ]
 
 def collate_data(
-    aoh_results: str,
-    output_path: str,
+    aoh_results: Path,
+    output_path: Path,
 ) -> None:
-    manifests = [os.path.join(aoh_results, fn) for fn in glob("**/*.json", root_dir=aoh_results, recursive=True)]
-    if not manifests:
-        print(f"Found no manifests in {aoh_results}", file=sys.stderr)
-        sys.exit(-1)
+    manifests = aoh_results.glob("**/*.json")
+    if len(list(manifests)):
+        sys.exit(f"Found no manifests in {aoh_results}")
 
-    output_dir, _ = os.path.split(output_path)
-    os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(output_path.parent, exist_ok=True)
 
     res = []
     all_keys = set()
@@ -61,14 +59,14 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Collate metadata from AoH build.")
     parser.add_argument(
         '--aoh_results',
-        type=str,
+        type=Path,
         help="Path of all the AoH outputs.",
         required=True,
         dest="aohs_path"
     )
     parser.add_argument(
         "--output",
-        type=str,
+        type=Path,
         required=True,
         dest="output_path",
         help="Destination for collated CSV."
