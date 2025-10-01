@@ -1,5 +1,6 @@
 import argparse
 import os
+from contextlib import ExitStack
 from functools import partial
 from multiprocessing import cpu_count, Pool
 from pathlib import Path
@@ -12,6 +13,22 @@ def validate_occurence(
     aohs_path: Path,
 ) -> tuple[int, float, float, bool]:
     taxon_id, lat, lng = gbif_datum
+
+    aoh_files = list(aohs_path.glob(f"**/{taxon_id}*.tif"))
+    if len(aoh_files) == 0:
+        return (taxon_id, lat, lng, False)
+
+    with ExitStack() as stack:
+        rasters = [stack.enter_context(yg.read_raster(x)) for x in aoh_files]
+        aoh = rasters[0]
+        for raster in rasters [1:]:
+            aoh += raster
+
+        pixel_x, pixel_y = raster.pixel_for_latlng(lat, lng)
+        value = aoh.read_array(pixel_x, pixel_y, 1, 1)
+
+    return (taxon_id, lat, lng, value > 0.0)
+
 
 def process_species(
     aohs_path: Path,
@@ -32,7 +49,7 @@ def validate_occurences(
     occurences = pd.read_csv(gbif_data_path)
     occurences.drop(columns=['gbif_data', 'year'], inplace=True)
     occurences.sort_values(['iucn_taxon_id', 'decimalLatitude'], inplace=True)
-    occurences_per_species = [group for _, group in df.groupby('iucn_taxon_id')]
+    occurences_per_species = [group for _, group in occurences.groupby('iucn_taxon_id')]
     with Pool(processes=process_count) as pool:
         results_per_species = pool.map(partial(process_species, aohs_path), occurences_per_species)
     results = pd.concat(results_per_species)
