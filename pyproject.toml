@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aoh"
-version = "1.0.1"
+version = "1.1.0"
 description = "A library for calculating Area of Habitat for species distribution mapping"
 authors = [
     {name = "Michael Dales", email = "mwd24@cam.ac.uk"}
@@ -29,7 +29,7 @@ dependencies = [
     "psutil",
     "pyproj>=3.4,<4.0",
     "scikit-image>=0.20,<1.0",
-    "yirgacheffe>=1.7.8,<2.0",
+    "yirgacheffe>=1.9.1,<2.0",
     "zenodo_search",
     "pandas>=2.0,<3.0",
     "gdal[numpy]>=3.8,<3.12",
@@ -47,6 +47,7 @@ dev = [
     "pytest",
     "types-psutil",
     "types-requests",
+    "types-shapely",
     "pandas-stubs",
     "geojson",
     "pytest-cov",
@@ -66,6 +67,7 @@ aoh-species-richness = "aoh.summaries.species_richness:main"
 aoh-endemism = "aoh.summaries.endemism:main"
 aoh-collate-data = "aoh.validation.collate_data:main"
 aoh-validate-prevalence = "aoh.validation.validate_map_prevalence:main"
+aoh-validate-occurences = "aoh.validation.validate_occurences:main"
 aoh-fetch-gbif-data = "aoh.validation.fetch_gbif_data:main"
 
 [tool.setuptools]

@@ -103,11 +103,11 @@ def generate_species_info(
         "full_habitat_code": "|".join(sorted(list(habitat_codes))),
     }
     coordinates = [[
-        [-90, -54],
-        [90, -54],
-        [90, 54],
-        [-90, 54],
-        [-90, -54],
+        [-90, -45],
+        [90, -45],
+        [90, 45],
+        [-90, 45],
+        [-90, -45],
     ]]
     polygon = geojson.Polygon(coordinates)
     feature= geojson.Feature(geometry=polygon, properties=properties)
