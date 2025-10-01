@@ -16,10 +16,12 @@ def test_empty_species_list() -> None:
 
 def generate_faux_aoh(filename: Path, shape: Polygon | None = None) -> None:
 
-    shapes = {'area': shape if shape is not None else Polygon([(0, 0), (0, 10), (10, 10), (10, 0)])}
+    shapes = [
+        shape if shape is not None else Polygon([(0, 0), (0, 10), (10, 10), (10, 0)])
+    ]
 
     features = []
-    for name, geom in shapes.items():
+    for geom in shapes:
         feature = {
             "type": "Feature",
             "properties": {},
