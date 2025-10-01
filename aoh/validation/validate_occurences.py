@@ -8,15 +8,24 @@ from pathlib import Path
 import pandas as pd
 import yirgacheffe as yg
 
-def validate_occurence(
-    gbif_datum: tuple[int, float, float],
+def process_species(
     aohs_path: Path,
-) -> tuple[int, float, float, bool]:
-    taxon_id, lat, lng = gbif_datum
+    species_occurences: pd.DataFrame,
+) -> pd.DataFrame:
+
+    if len(species_occurences) == 0:
+        species_occurences['occurence'] = None
+        return species_occurences
+
+    taxon_ids = species_occurences.iucn_taxon_id.unique()
+    if len(taxon_ids) > 1:
+        raise ValueError("Too many taxon IDs")
+    taxon_id = taxon_ids[0]
 
     aoh_files = list(aohs_path.glob(f"**/{taxon_id}*.tif"))
     if len(aoh_files) == 0:
-        return (taxon_id, lat, lng, False)
+        species_occurences['occurence'] = False
+        return species_occurences
 
     with ExitStack() as stack:
         rasters = [stack.enter_context(yg.read_raster(x)) for x in aoh_files]
@@ -24,17 +33,14 @@ def validate_occurence(
         for raster in rasters [1:]:
             aoh += raster
 
-        pixel_x, pixel_y = raster.pixel_for_latlng(lat, lng)
-        value = aoh.read_array(pixel_x, pixel_y, 1, 1)
+        results = []
+        for _, row in species_occurences.iterrows():
+            pixel_x, pixel_y = aoh.pixel_for_latlng(row.decimalLatitude, row.decimalLongitude)
+            value = aoh.read_array(pixel_x, pixel_y, 1, 1)
+            results.append(value > 0.0)
 
-    return (taxon_id, lat, lng, value > 0.0)
-
-
-def process_species(
-    aohs_path: Path,
-    species_occurences: pd.DataFrame,
-) -> pd.DataFrame:
-    pass
+    species_occurences['occurence'] = results
+    return species_occurences
 
 def validate_occurences(
     gbif_data_path: Path,
