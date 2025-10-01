@@ -30,7 +30,7 @@ def collate_data(
     output_path: Path,
 ) -> None:
     manifests = aoh_results.glob("**/*.json")
-    if len(list(manifests)):
+    if len(list(manifests)) == 0:
         sys.exit(f"Found no manifests in {aoh_results}")
 
     os.makedirs(output_path.parent, exist_ok=True)

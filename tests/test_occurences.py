@@ -38,8 +38,8 @@ def generate_faux_aoh(filename: Path, shape: Polygon | None = None) -> None:
         with open(geojson_path, 'w', encoding="UTF-8") as f:
             json.dump(geojson, f, indent=2)
 
-        with yg.read_shape(geojson_path, ("epsg:4326", (1.0, -1.0))) as shape:
-            shape.to_geotiff(filename)
+        with yg.read_shape(geojson_path, ("epsg:4326", (1.0, -1.0))) as shape_layer:
+            shape_layer.to_geotiff(filename)
 
 @pytest.mark.parametrize("taxon_id,latitude,longitude,expected",[
     (42, 5.0, 5.0, True),
