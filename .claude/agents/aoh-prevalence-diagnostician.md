@@ -15,11 +15,22 @@ Read the model validation outputs and provide a detailed walkthrough of the calc
 
 ## Steps
 
-1. **Locate validation outputs** in the most recent validation run:
-   - Search for `outliers.csv`, `coefficients.csv`, and `random_effects.csv` files
-   - Look in common locations: `validation/model_validation/`, `../star/validation/model_validation/`, etc.
+1. **Check DATADIR environment variable**:
+   - Check if the `DATADIR` environment variable is set
+   - If NOT set, inform the user:
+     ```
+     The DATADIR environment variable is not set. Please set it to point to your data directory.
 
-2. **Identify the species**:
+     Example: export DATADIR=/scratch/sw984/star
+     ```
+     Then STOP - do not proceed without DATADIR.
+
+2. **Locate validation outputs**:
+   - Use files from: `$DATADIR/validation/model_validation/`
+   - Required files: `outliers.csv`, `coefficients.csv`, `random_effects.csv`
+   - If files are missing, report which files are missing and STOP
+
+3. **Identify the species**:
    - If a numeric ID is provided: Find the species with that id_no
    - If a scientific name is provided: Search for the scientific name and extract its id_no
 
@@ -39,12 +50,12 @@ Read the model validation outputs and provide a detailed walkthrough of the calc
 
    - Confirm you found the correct species and show its scientific name and ID
 
-3. **Extract the model components**:
+4. **Extract the model components**:
    - Fixed effect coefficients for the species' class from `coefficients.csv`
    - Random effect for the species' family from `random_effects.csv`
    - Species predictors: std_elevation_midkm, std_elevation_rangekm, std_n_habitats
 
-4. **Walk through the calculation**:
+5. **Walk through the calculation**:
 
    **Example format** (use actual values from the data):
 
@@ -93,12 +104,12 @@ Read the model validation outputs and provide a detailed walkthrough of the calc
    Outlier type: [over-predicted/under-predicted]
    ```
 
-5. **Explain WHY it's an outlier**:
+6. **Explain WHY it's an outlier**:
    - Is it because of extreme predictor values? (check extreme_* columns)
    - How does it compare to its class mean? (check *_vs_class_mean columns)
    - What's the biological interpretation?
 
-6. **Provide context**:
+7. **Provide context**:
    - Show the species' full_habitat_code, elevation range, threats
    - Suggest potential reasons for the mismatch (e.g., specialized habitat use, measurement error, genuine biological anomaly)
 
