@@ -98,7 +98,7 @@ def add_diagnostic_columns(
 
     return klass_df
 
-def fit_class_model(klass_df: pd.DataFrame, class_name: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+def fit_class_model(klass_df: pd.DataFrame, class_name: str) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Fit model for a single taxonomic class and return diagnostics."""
     print(f"{class_name}:\n\taohs: {len(klass_df)}")
 
@@ -110,9 +110,17 @@ def fit_class_model(klass_df: pd.DataFrame, class_name: str) -> tuple[pd.DataFra
     )
     model.fit()
 
-    # Store coefficients
+    # Store fixed effect coefficients
     coef_df = model.coefs.copy()
     coef_df['class_name'] = class_name
+
+    # Extract random effects for each family
+    ranef_df = model.ranef.copy()
+    ranef_df['class_name'] = class_name
+    ranef_df = ranef_df.reset_index()
+    # pymer4 uses 'X.Intercept.' as the column name for random intercepts
+    intercept_col = [col for col in ranef_df.columns if 'Intercept' in col][0]
+    ranef_df = ranef_df.rename(columns={'index': 'family_name', intercept_col: 'random_effect'})
 
     # Add predictions and residuals
     klass_df['predicted'] = model.fits
@@ -132,9 +140,9 @@ def fit_class_model(klass_df: pd.DataFrame, class_name: str) -> tuple[pd.DataFra
     n_outliers = klass_df.outlier.sum()
     print(f"\toutliers: {n_outliers}")
 
-    return klass_df, coef_df
+    return klass_df, coef_df, ranef_df
 
-def model_validation(aoh_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def model_validation(aoh_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """Run model validation across all taxonomic classes."""
     if pymer4 is None:
         raise ImportError("pymer4 is required for model validation but not installed. "
@@ -142,7 +150,7 @@ def model_validation(aoh_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, 
 
     # Filter out species with no AOH
     aoh_df = aoh_df[aoh_df.prevalence > 0].copy()
-    
+
     # Prepare predictor variables
     aoh_df = prepare_predictors(aoh_df)
 
@@ -154,19 +162,22 @@ def model_validation(aoh_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, 
     # Fit models for each class
     all_species_list = []
     all_coefficients = []
+    all_random_effects = []
 
     for klass in klasses:
         klass_df = aoh_df[aoh_df.class_name == klass].copy()
-        klass_df, coef_df = fit_class_model(klass_df, klass)
+        klass_df, coef_df, ranef_df = fit_class_model(klass_df, klass)
         all_species_list.append(klass_df)
         all_coefficients.append(coef_df)
+        all_random_effects.append(ranef_df)
 
     # Concatenate results
     all_species_df = pd.concat(all_species_list)  # type: ignore[arg-type]
     coefficients_df = pd.concat(all_coefficients)  # type: ignore[arg-type]
+    random_effects_df = pd.concat(all_random_effects)  # type: ignore[arg-type]
     outliers_df = all_species_df[all_species_df.outlier == True]  # type: ignore[arg-type] # pylint: disable = C0121
 
-    return outliers_df, all_species_df, coefficients_df
+    return outliers_df, all_species_df, coefficients_df, random_effects_df
 
 def generate_readme(output_dir: Path, aoh_df: pd.DataFrame, outliers: pd.DataFrame) -> None:
     """Generate a README.md explaining the validation outputs."""
@@ -242,7 +253,17 @@ Model coefficient estimates for each taxonomic class (simplified pivot table).
 - Columns: Model variables (Intercept and the three predictors)
 - Values: Coefficient estimates from the binomial GLMM
 
-### 4. no_aoh_species.csv
+### 4. random_effects.csv
+Random effect estimates for each taxonomic family within each class.
+
+**Key columns:**
+- `family_name`: Taxonomic family
+- `random_effect`: Deviation from class-level fixed effects (on logit scale)
+- `class_name`: Taxonomic class
+
+Random effects represent family-specific adjustments that account for phylogenetic clustering. Positive values indicate families with systematically higher prevalence than predicted by fixed effects alone.
+
+### 5. no_aoh.csv
 Species where the AOH calculation resulted in zero area. These are excluded from the model validation.
 
 ## Model Description
@@ -274,9 +295,9 @@ def validate_map_prevalence(
 
     # Save species with no AOH
     no_aoh = aoh_df[aoh_df.aoh_total == 0]
-    no_aoh.to_csv(output_dir / "no_aoh_species.csv", index=False)
+    no_aoh.to_csv(output_dir / "no_aoh.csv", index=False)
 
-    outliers, all_species, coefficients = model_validation(aoh_df)
+    outliers, all_species, coefficients, random_effects = model_validation(aoh_df)
 
     # Remove irrelevant columns from diagnostics
     columns_to_remove = ['threats', 'category_weight', 'assessment_year']
@@ -293,10 +314,11 @@ def validate_map_prevalence(
         values='Estimate'
     )
 
-    # Save the three main outputs
+    # Save the four main outputs
     outliers.to_csv(output_dir / "outliers.csv", index=False)
     diagnostics.to_csv(output_dir / "diagnostics.csv", index=False)
     estimates_pivot.to_csv(output_dir / "coefficients.csv", index=True)
+    random_effects.to_csv(output_dir / "random_effects.csv", index=False)
 
     # Generate README
     generate_readme(output_dir, aoh_df, outliers)
