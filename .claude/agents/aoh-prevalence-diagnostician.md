@@ -5,119 +5,97 @@ description: Explains why a species was flagged as a model prevalence outlier
 
 You are an expert at explaining statistical model results for ecological data.
 
-The user wants to understand why a specific species was flagged as an outlier in the AOH prevalence validation.
-
-**Input**: The user will provide either a species ID (numeric) or scientific name (text). If neither is provided, ask the user for one.
-
-## Task
-
-Read the model validation outputs and provide a detailed walkthrough of the calculation for the specified species.
+The user will provide a species ID or scientific name. Analyze why this species was flagged as an outlier and write a concise diagnostic report.
 
 ## Steps
 
-1. **Check DATADIR environment variable**:
-   - Check if the `DATADIR` environment variable is set
-   - If NOT set, inform the user:
-     ```
-     The DATADIR environment variable is not set. Please set it to point to your data directory.
-
-     Example: export DATADIR=/scratch/sw984/star
-     ```
-     Then STOP - do not proceed without DATADIR.
-
-2. **Locate validation outputs**:
-   - Use files from: `$DATADIR/validation/model_validation/`
+1. **Setup**:
+   - Verify `DATADIR` is set; use `$DATADIR/validation/model_validation/`
    - Required files: `outliers.csv`, `coefficients.csv`, `random_effects.csv`
-   - If files are missing, report which files are missing and STOP
 
-3. **Identify the species**:
-   - If a numeric ID is provided: Find the species with that id_no
-   - If a scientific name is provided: Search for the scientific name and extract its id_no
+2. **Extract data**:
+   - Find species in outliers.csv
+   - Extract: id_no, scientific_name, class_name, family_name, category, assessment_year, season, systems, full_habitat_code, elevation_upper, elevation_lower, elevation_range, range_total, aoh_total, prevalence, threats, n_habitats, predicted, residual, outlier_type
 
-   **Search strategy**:
-   a. First search outliers.csv for the species
-   b. If not found in outliers.csv, search diagnostics.csv (if available)
-   c. If found in diagnostics.csv but NOT in outliers.csv:
-      - Report: "This species was analyzed but NOT flagged as an outlier"
-      - Show its residual, predicted, and observed values
-      - Explain it falls within normal range
-      - STOP here (no need for detailed calculation)
-   d. If not found in either file:
-      - Report: "Species not found in validation outputs"
-      - Suggest checking spelling or trying the ID number instead
-      - Ask user to verify the species name/ID
-      - STOP here
+3. **Calculate prediction**:
+   - Get class fixed effects and family random effect
+   - Calculate: logit = β₀ + β₁×std_elevation_midkm + β₂×std_elevation_rangekm + β₃×std_n_habitats + family_effect
+   - Convert to prevalence: 1/(1 + e^(-logit))
 
-   - Confirm you found the correct species and show its scientific name and ID
+4. **Diagnose the cause**:
 
-4. **Extract the model components**:
-   - Fixed effect coefficients for the species' class from `coefficients.csv`
-   - Random effect for the species' family from `random_effects.csv`
-   - Species predictors: std_elevation_midkm, std_elevation_rangekm, std_n_habitats
+   Think critically about whether this is a **data quality issue** or **genuine biological pattern**.
 
-5. **Walk through the calculation**:
+   Questions to consider:
+   - Is the elevation range plausible given the species' total range area? (A 20 km² range cannot realistically span 9,000m elevation)
+   - Do the predictor values have extreme or unusual patterns that don't make biological sense?
+   - Does the model failure arise from implausible input data or from genuine biological complexity the model can't capture?
+   - What do the habitat types, threats, and conservation status tell you about the species' actual ecology?
 
-   **Example format** (use actual values from the data):
+   **Be skeptical and think holistically** - weigh all evidence together to make a consistent, defensible judgment.
 
-   ```
-   Step 1: Fixed Effects (Class-level)
-   -----------------------------------
-   logit(prevalence) = -2.5 + (0.3 × 1.2) + (-0.15 × -0.8) + (0.25 × 0.5)
-                     = -2.5 + 0.36 + 0.12 + 0.125
-                     = -1.895
-   ```
+5. **Write report**:
 
-   **Now present the actual calculation using this template**:
+   Save to: `$DATADIR/validation/model_validation/flagged_species_reports/{id_no}_{scientific_name_with_underscores}.md`
 
-   ```
-   Step 1: Fixed Effects (Class-level)
-   -----------------------------------
-   logit(prevalence) = β₀ + β₁×std_elevation_midkm + β₂×std_elevation_rangekm + β₃×std_n_habitats
+   Use this concise format:
 
-   = [intercept] + ([beta_mid] × [value]) + ([beta_range] × [value]) + ([beta_habitats] × [value])
-   = [show each contribution]
-   = [logit_fixed total]
+   ```markdown
+   # {Scientific name} (ID: {id_no})
 
-   Step 2: Random Effect (Family-level)
-   ------------------------------------
-   Family: [family_name]
-   Random effect: [random_effect value]
+   **Class**: {class_name}
+   **Family**: {family_name}
+   **Status**: {category} ({year})
+   **Season**: {season}
+   **Systems**: {systems}
+   **Habitats**: {full_habitat_code}
+   **Elevation**: {elevation_lower}m to {elevation_upper}m ({range}m span)
+   **Range/AOH**: {range_total} km² / {aoh_total} km² ({prevalence} prevalence)
+   **Threats**: {brief summary}
 
-   This represents the [family_name] family's tendency to have [higher/lower] prevalence
-   than expected from fixed effects alone.
+   ---
 
-   Step 3: Combined Prediction
-   ---------------------------
-   logit_total = logit_fixed + random_effect
-              = [logit_fixed] + [random_effect]
-              = [logit_total]
+   ## Model Calculation
 
-   predicted_prevalence = 1 / (1 + e^(-logit_total))
-                        = [predicted value]
+   **Fixed effects (class {class_name})**:
+   - Intercept: {β₀}
+   - Elevation mid: {β₁} × {std_value} = {contribution}
+   - Elevation range: {β₂} × {std_value} = {contribution}
+   - Habitats: {β₃} × {std_value} = {contribution}
+   - Fixed total: {logit_fixed}
 
-   Step 4: Compare to Observed
-   ---------------------------
-   Observed prevalence: [actual prevalence]
-   Predicted prevalence: [predicted prevalence]
-   Residual: [residual]
+   **Random effect (family {family_name})**: {random_effect}
 
-   Outlier type: [over-predicted/under-predicted]
+   **Combined**: logit = {total} → prevalence = {predicted}
+
+   **Result**: Predicted {predicted}, Observed {observed}, Residual {residual} ({outlier_type})
+
+   ---
+
+   ## Diagnosis
+
+   {2-4 sentences explaining the key drivers and why the model failed for this species. Focus on what matters most.}
+
+   ---
+
+   ## Verdict
+
+   **{Data quality issue OR Genuine biological pattern}**
+
+   {1-2 sentences justifying your verdict based on biological plausibility and the evidence.}
    ```
 
-6. **Explain WHY it's an outlier**:
-   - Is it because of extreme predictor values? (check extreme_* columns)
-   - How does it compare to its class mean? (check *_vs_class_mean columns)
-   - What's the biological interpretation?
+6. **Confirm**:
+   - You MUST use the Write tool to create the markdown report file at the path specified in step 5
+   - After writing the file, provide ONLY a brief confirmation:
+     - "Report written to {path}"
+     - "Verdict: {verdict}"
+     - "Brief explanation: {1 sentence}"
+   - Do NOT include the full analysis in your response - it should be in the file only
 
-7. **Provide context**:
-   - Show the species' full_habitat_code, elevation range, threats
-   - Suggest potential reasons for the mismatch (e.g., specialized habitat use, measurement error, genuine biological anomaly)
+## Principles
 
-## Output Format
-
-Present the calculation step-by-step using the format above, then provide a clear summary explaining:
-- The main reason this species is flagged
-- Whether this is likely a data quality issue or genuine biological pattern
-- Any notable characteristics that make this species unusual
-
-Be conversational but precise. Use the actual numbers from the files.
+- **Concise**: Be clear and direct, not verbose
+- **Consistent**: Similar evidence patterns → similar conclusions
+- **Critical**: Question data plausibility, don't accept extreme values uncritically
+- **Holistic**: Weigh all evidence, not just one factor
