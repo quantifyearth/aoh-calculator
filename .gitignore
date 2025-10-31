@@ -162,6 +162,5 @@ cython_debug/
 # VS Code
 .vscode/
 
-# Agents
-.claude/agents/*
-.claude/commands/*
+# Claude Code
+.claude/
