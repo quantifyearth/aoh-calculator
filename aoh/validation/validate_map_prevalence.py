@@ -12,8 +12,6 @@ except (ImportError, ValueError):
     pymer4 = None
 
 def generate_results_summary(aoh_df: pd.DataFrame, outliers: pd.DataFrame) -> str:
-    """Generate a summary summarizing the model validation outputs."""
-
     summary_content = (
         "# Model Validation Results Summary\n\n"
         + "## Summary Statistics\n\n"
@@ -40,7 +38,6 @@ def add_diagnostic_columns(
     upper_fence: float,
     lower_fence: float
 ) -> pd.DataFrame:
-    """Add all diagnostic columns to class dataframe."""
     # Calculate class means for comparison
     klass_means = klass_df[['elevation_rangekm', 'elevation_midkm', 'n_habitats', 'prevalence']].mean()
 
@@ -80,14 +77,12 @@ def add_diagnostic_columns(
 
     return klass_df
 
-
 def extract_model_coefficients(model: "pymer4.models.Lmer", class_name: str) -> pd.DataFrame:
     coef_df = model.coefs.copy()
     # Normalize to have explicit variable column for easier downstream pivoting
     coef_df = coef_df.reset_index().rename(columns={'index': 'variable'})
     coef_df['class_name'] = class_name
     return coef_df
-
 
 def extract_random_effects(model: "pymer4.models.Lmer", class_name: str) -> pd.DataFrame:
     ranef_df = model.ranef.copy()
@@ -97,7 +92,6 @@ def extract_random_effects(model: "pymer4.models.Lmer", class_name: str) -> pd.D
     intercept_col = [col for col in ranef_df.columns if 'Intercept' in col][0]
     ranef_df = ranef_df.rename(columns={'index': 'family_name', intercept_col: 'random_effect'})
     return ranef_df
-
 
 def add_predictors_to_aoh_df(aoh_df: pd.DataFrame) -> pd.DataFrame:
     """Calculate and standardize predictor variables."""
@@ -119,7 +113,6 @@ def add_predictors_to_aoh_df(aoh_df: pd.DataFrame) -> pd.DataFrame:
         / standard_devs.n_habitats
 
     return aoh_df
-
 
 def model_validation(aoh_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     if pymer4 is None:
@@ -162,10 +155,9 @@ def model_validation(aoh_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, 
         upper_fence = q3 + (1.5 * iqr)        
 
         klass_df['outlier'] = (klass_df.fit_diff > upper_fence )  | (klass_df.fit_diff < lower_fence )
+        klass_df = add_diagnostic_columns(klass_df, upper_fence, lower_fence)
         klass_outliers = klass_df[klass_df.outlier == True]  # pylint: disable = C0121
         print(f"\toutliers: {len(klass_outliers)}")
-
-        klass_outliers = add_diagnostic_columns(klass_outliers, upper_fence, lower_fence)
         per_class_outliers_df.append(klass_outliers)
 
         coef_df = extract_model_coefficients(model, klass)
@@ -180,7 +172,6 @@ def model_validation(aoh_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, 
     random_effects_df = pd.concat(per_class_random_effects)  # type: ignore[arg-type]
 
     return outliers_df, model_coefficients_df, random_effects_df
-
 
 def validate_map_prevalence(
     collated_data_path: Path,
