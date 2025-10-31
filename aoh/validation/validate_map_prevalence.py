@@ -108,25 +108,20 @@ def add_predictors_to_aoh_df(aoh_df: pd.DataFrame) -> pd.DataFrame:
     aoh_df['elevation_rangekm'] = aoh_df['elevation_range'] / 1000.0
     aoh_df['elevation_midkm'] = aoh_df['elevation_mid'] / 1000.0
 
-    # Standardize predictors across full dataset
     means = aoh_df.mean(axis=0, numeric_only=True)
     standard_devs = aoh_df.std(axis=0, numeric_only=True)
 
-    aoh_df['std_elevation_rangekm'] = (
-        (aoh_df.elevation_rangekm - means.elevation_rangekm) / standard_devs.elevation_rangekm
-    )
-    aoh_df['std_elevation_midkm'] = (
-        (aoh_df.elevation_midkm - means.elevation_midkm) / standard_devs.elevation_midkm
-    )
-    aoh_df['std_n_habitats'] = (
-        (aoh_df.n_habitats - means.n_habitats) / standard_devs.n_habitats
-    )
+    aoh_df['std_elevation_rangekm'] = (aoh_df.elevation_rangekm - means.elevation_rangekm) \
+        / standard_devs.elevation_rangekm
+    aoh_df['std_elevation_midkm'] = (aoh_df.elevation_midkm - means.elevation_midkm) \
+        / standard_devs.elevation_midkm
+    aoh_df['std_n_habitats'] = (aoh_df.n_habitats - means.n_habitats) \
+        / standard_devs.n_habitats
 
     return aoh_df
 
 
 def model_validation(aoh_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Run model validation across all taxonomic classes."""
     if pymer4 is None:
         raise ImportError("pymer4 is required for model validation but not installed. "
                          "This requires R to be installed on the system.")
