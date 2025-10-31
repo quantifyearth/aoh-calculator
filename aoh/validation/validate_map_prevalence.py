@@ -114,7 +114,7 @@ def add_predictors_to_aoh_df(aoh_df: pd.DataFrame) -> pd.DataFrame:
 
     return aoh_df
 
-def model_validation(aoh_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def model_validation(aoh_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     if pymer4 is None:
         raise ImportError("pymer4 is required for model validation but not installed. "
                          "This requires R to be installed on the system.")
@@ -144,7 +144,6 @@ def model_validation(aoh_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, 
             family="binomial"
         )
         model.fit()
-    
         klass_df['fit'] = model.fits
         klass_df['fit_diff'] = klass_df['prevalence'] - klass_df['fit']
 
@@ -152,7 +151,7 @@ def model_validation(aoh_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, 
         q3 = klass_df.fit_diff.quantile(q=0.75)
         iqr = q3 - q1
         lower_fence = q1 - (1.5 * iqr)
-        upper_fence = q3 + (1.5 * iqr)        
+        upper_fence = q3 + (1.5 * iqr)
 
         klass_df['outlier'] = (klass_df.fit_diff > upper_fence )  | (klass_df.fit_diff < lower_fence )
         klass_df = add_diagnostic_columns(klass_df, upper_fence, lower_fence)
@@ -184,9 +183,11 @@ def validate_map_prevalence(
     # Save useful model diagnostic files
     output_dir = output_path.parent
     aoh_df[aoh_df.aoh_total == 0].to_csv(output_dir / "species_with_no_aoh.csv", index=False)
-    model_coefficients.pivot(index='class_name', columns='variable', values='Estimate').to_csv(output_dir / "model_coefficients.csv", index=True)
+    model_coefficients.pivot(
+        index='class_name', columns='variable', values='Estimate'
+    ).to_csv(output_dir / "model_coefficients.csv", index=True)
     random_effects.to_csv(output_dir / "random_effects.csv", index=False)
-    with open(output_dir / "summary.md", 'w') as f:
+    with open(output_dir / "summary.md", 'w', encoding='utf-8') as f:
         summary_content = generate_results_summary(aoh_df, outliers)
         f.write(summary_content)
 
