@@ -29,7 +29,7 @@ dependencies = [
     "psutil",
     "pyproj>=3.4,<4.0",
     "scikit-image>=0.20,<1.0",
-    "yirgacheffe>=1.9.1,<2.0",
+    "yirgacheffe>=1.10.2,<2.0",
     "zenodo_search",
     "pandas>=2.0,<3.0",
     "gdal[numpy]>=3.8,<3.12",
