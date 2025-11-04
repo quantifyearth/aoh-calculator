@@ -6,7 +6,7 @@ import numpy as np
 import yirgacheffe as yg
 from osgeo import gdal   # type: ignore
 
-from aoh.habitat_process import enumerate_terrain_types, _make_single_type_map
+from aoh.habitat_process import enumerate_terrain_types, make_single_type_map
 
 def generate_habitat_map(
     output_path: Path,
@@ -47,11 +47,12 @@ def test_simple_make_single_map() -> None:
         generate_habitat_map(habitat_path, (20, 10), options)
         assert habitat_path.exists()
 
-        _make_single_type_map(
+        make_single_type_map(
             habitat_path,
             None,
             None,
             tmp,
+            1,
             100,
         )
         expected_result_path = tmp / "lcc_100.tif"
@@ -76,11 +77,12 @@ def test_rescale_make_single_map() -> None:
         generate_habitat_map(habitat_path, (20, 10), options)
         assert habitat_path.exists()
 
-        _make_single_type_map(
+        make_single_type_map(
             habitat_path,
             180.0 / 5.0, # Scale down by half
             None,
             tmp,
+            1,
             100,
         )
         expected_result_path = tmp / "lcc_100.tif"
