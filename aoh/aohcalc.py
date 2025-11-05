@@ -121,6 +121,9 @@ def aohcalc(
 
     range_total = (range_map * area_per_pixel).sum()
 
+    # We've had instances of overflow issues with large ranges in the past
+    assert range_total >= 0.0
+
     # Habitat evaluation. In the IUCN Redlist Technical Working Group recommendations, if there are no defined
     # habitats, then we revert to range. If the area of the habitat map filtered by species habitat is zero then we
     # similarly revert to range as the assumption is that there is an error in the habitat coding.
