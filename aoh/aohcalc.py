@@ -108,7 +108,8 @@ def aohcalc(
     max_elevation_map = yg.read_raster(max_elevation_path)
     range_map = yg.read_shape_like(
         species_data_path,
-        min_elevation_map
+        min_elevation_map,
+        datatype=yg.DataType.Float32,
     )
 
     area_per_pixel: float | yg.YirgacheffeLayer = 1.0
