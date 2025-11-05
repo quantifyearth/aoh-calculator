@@ -3,7 +3,6 @@ import math
 import os
 import tempfile
 from pathlib import Path
-from typing import Dict, Set, Tuple
 
 import geojson # type: ignore
 import numpy as np
@@ -16,8 +15,8 @@ from aoh.aohcalc import aohcalc
 
 def generate_habitat_maps(
     output_dir: Path,
-    dimensions: Tuple[int,int],
-    options: Set[int],
+    dimensions: tuple[int,int],
+    options: set[int],
 ) -> None:
     width, height = dimensions
     for option in options:
@@ -39,7 +38,7 @@ def generate_habitat_maps(
 
 def generate_flat_elevation_map(
     output_path: Path,
-    dimensions: Tuple[int, int],
+    dimensions: tuple[int, int],
     elevation_value: int,
 ) -> None:
     width, height = dimensions
@@ -60,7 +59,7 @@ def generate_flat_elevation_map(
 
 def generate_area_map(
     output_path: Path,
-    dimensions: Tuple[int, int],
+    dimensions: tuple[int, int],
     area_value: float,
 ) -> None:
     width, height = dimensions
@@ -81,7 +80,7 @@ def generate_area_map(
 
 def generate_crosswalk(
     output_path: Path,
-    values: Dict[str,Set[int]],
+    values: dict[str,set[int]],
 ) -> None:
     res = []
     for k, v in values.items():
@@ -92,8 +91,8 @@ def generate_crosswalk(
 
 def generate_species_info(
     output_path: Path,
-    elevation_range: Tuple[int,int],
-    habitat_codes: Set[str],
+    elevation_range: tuple[int,int],
+    habitat_codes: set[str],
 ) -> None:
     properties = {
         "id_no": "1234",

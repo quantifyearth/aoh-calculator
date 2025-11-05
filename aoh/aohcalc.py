@@ -1,28 +1,24 @@
 import argparse
 import json
+import logging
 import math
 import os
-import logging
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Union
 
 import pandas as pd
-from yirgacheffe.layers import RasterLayer, VectorLayer, ConstantLayer, UniformAreaLayer # type: ignore
+import yirgacheffe as yg
 from geopandas import gpd # type: ignore
 from alive_progress import alive_bar # type: ignore
-from osgeo import gdal # type: ignore
-gdal.UseExceptions()
 
-import yirgacheffe # pylint: disable=C0412,C0413
-yirgacheffe.constants.YSTEP = 2048
+yg.constants.YSTEP = 2048
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(message)s')
 
-def load_crosswalk_table(table_file_name: Path) -> Dict[str,List[int]]:
+def load_crosswalk_table(table_file_name: Path) -> dict[str,list[int]]:
     rawdata = pd.read_csv(table_file_name)
-    result : Dict[str,List[int]] = {}
+    result : dict[str,list[int]] = {}
     for _, row in rawdata.iterrows():
         code = str(row.code)
         try:
@@ -31,7 +27,7 @@ def load_crosswalk_table(table_file_name: Path) -> Dict[str,List[int]]:
             result[code] = [int(row.value)]
     return result
 
-def crosswalk_habitats(crosswalk_table: Dict[str, List[int]], raw_habitats: Set[str]) -> Set[int]:
+def crosswalk_habitats(crosswalk_table: dict[str, list[int]], raw_habitats: set[str]) -> set[int]:
     result = set()
     for habitat in raw_habitats:
         try:
@@ -45,7 +41,7 @@ def aohcalc(
     habitat_path: Path,
     min_elevation_path: Path,
     max_elevation_path: Path,
-    area_path: Optional[Path],
+    area_path: Path | None,
     crosswalk_path: Path,
     species_data_path: Path,
     force_habitat: bool,
@@ -106,53 +102,23 @@ def aohcalc(
             json.dump(manifest, f)
         return
 
-    habitat_maps = [RasterLayer.layer_from_file(x) for x in habitat_map_files]
+    habitat_maps = [yg.read_raster(x) for x in habitat_map_files]
 
-    min_elevation_map = RasterLayer.layer_from_file(min_elevation_path)
-    max_elevation_map = RasterLayer.layer_from_file(max_elevation_path)
-    range_map = VectorLayer.layer_from_file_like(
+    min_elevation_map = yg.read_raster(min_elevation_path)
+    max_elevation_map = yg.read_raster(max_elevation_path)
+    range_map = yg.read_shape_like(
         species_data_path,
         min_elevation_map
     )
 
-    area_map : Union[ConstantLayer, RasterLayer, UniformAreaLayer] = ConstantLayer(1.0)
+    area_per_pixel: float | yg.YirgacheffeLayer = 1.0
     if area_path:
         try:
-            area_map = UniformAreaLayer.layer_from_file(area_path)
+            area_per_pixel = yg.read_narrow_raster(area_path)
         except ValueError:
-            area_map = RasterLayer.layer_from_file(area_path)
+            area_per_pixel = yg.read_raster(area_path)
 
-
-    layers = habitat_maps + [min_elevation_map, max_elevation_map, range_map, area_map]
-    try:
-        intersection = RasterLayer.find_intersection(layers)
-    except ValueError:
-        logger.warning("Failed to find intersection for %s: %s",  species_data_path, range_map.area)
-
-        result = RasterLayer.empty_raster_layer_like(
-            area_map,
-            filename=result_filename,
-            compress=True,
-        )
-        with alive_bar(manual=True) as bar:
-            range_total = (range_map * area_map).save(result, and_sum=True, callback=bar)
-
-        manifest.update({
-            'range_total': range_total,
-            'hab_total': 0,
-            'dem_total': 0,
-            'aoh_total': range_total,
-            'prevalence': 1.0,
-            'error': 'Failed to find intersection'
-        })
-        with open(manifest_filename, 'w', encoding="utf-8") as f:
-            json.dump(manifest, f)
-        return
-
-    for layer in layers:
-        layer.set_window_for_intersection(intersection)
-
-    range_total = (range_map * area_map).sum()
+    range_total = (range_map * area_per_pixel).sum()
 
     # Habitat evaluation. In the IUCN Redlist Technical Working Group recommendations, if there are no defined
     # habitats, then we revert to range. If the area of the habitat map filtered by species habitat is zero then we
@@ -189,26 +155,20 @@ def aohcalc(
     # filtering of the DEM returns zero, then we ignore this layer on the assumption that there is error in the
     # elevation data. This aligns with the data hygine practices recommended by Busana et al, as implemented
     # in cleaning.py, where any bad values for elevation cause us assume the entire range is valid.
-    hab_only_total = (filtered_by_habtitat * area_map).sum()
+    hab_only_total = (filtered_by_habtitat * area_per_pixel).sum()
 
     filtered_elevation = (min_elevation_map <= elevation_upper) & (max_elevation_map >= elevation_lower)
 
-    dem_only_total = (filtered_elevation * range_map * area_map).sum()
+    dem_only_total = (filtered_elevation * range_map * area_per_pixel).sum()
 
     filtered_by_both = filtered_elevation * filtered_by_habtitat
     if filtered_by_both.sum() == 0:
         filtered_by_both = filtered_by_habtitat
 
-    calc = filtered_by_both * area_map
+    calc = filtered_by_both * area_per_pixel
 
-    with RasterLayer.empty_raster_layer_like(
-        min_elevation_map,
-        filename=result_filename,
-        compress=True,
-        datatype=gdal.GDT_Float32
-    ) as aoh_raster:
-        with alive_bar(manual=True) as bar:
-            aoh_total = calc.save(aoh_raster, and_sum=True, callback=bar)
+    with alive_bar(manual=True) as bar:
+        aoh_total = calc.to_geotiff(result_filename, and_sum=True, callback=bar)
 
     manifest.update({
         'range_total': range_total,
@@ -219,7 +179,6 @@ def aohcalc(
     })
     with open(manifest_filename, 'w', encoding="utf-8") as f:
         json.dump(manifest, f)
-
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Area of habitat calculator.")
