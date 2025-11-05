@@ -29,9 +29,11 @@ def collate_data(
     aoh_results: Path,
     output_path: Path,
 ) -> None:
-    manifests = aoh_results.glob("**/*.json")
-    if len(list(manifests)) == 0:
-        sys.exit(f"Found no manifests in {aoh_results}")
+    # Casting to a list here is a bit wasteful, but I think getting a sense
+    # that there is no files early leads to better error reporting.
+    manifests = list(aoh_results.glob("**/*.json"))
+    if len(manifests) == 0:
+        raise FileNotFoundError(f"Found no manifests in {aoh_results}")
 
     os.makedirs(output_path.parent, exist_ok=True)
 
@@ -73,10 +75,13 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    collate_data(
-        args.aohs_path,
-        args.output_path,
-    )
+    try:
+        collate_data(
+            args.aohs_path,
+            args.output_path,
+        )
+    except FileNotFoundError:
+        sys.exit("Failed to find data")
 
 if __name__ == "__main__":
     main()

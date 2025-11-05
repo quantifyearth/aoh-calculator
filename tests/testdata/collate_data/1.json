@@ -1,0 +1,18 @@
+{
+  "id_no": "1",
+  "assessment_id": "111",
+  "assessment_year": "2010",
+  "season": "RESIDENT",
+  "elevation_lower": "0",
+  "elevation_upper": "150",
+  "full_habitat_code": "3.5|14.3|4.4|3.7|3.6|15.8|4.7|14.6|4.5|14.2|3.4|4.6|14.5|14.1|15.7|15.9|14.4",
+  "scientific_name": "One une en",
+  "family_name": "NUMBER",
+  "class_name": "MAMMALIA",
+  "category": "LC",
+  "range_total": 5377499278409.75,
+  "hab_total": 3142935478203.522,
+  "dem_total": 5118755494259.25,
+  "aoh_total": 3026810920143.975,
+  "prevalence": 0.5628658905258045
+}
