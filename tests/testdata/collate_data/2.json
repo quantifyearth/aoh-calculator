@@ -1,0 +1,18 @@
+{
+  "id_no": "2",
+  "assessment_id": "222",
+  "assessment_year": "2020",
+  "season": "RESIDENT",
+  "elevation_lower": "20",
+  "elevation_upper": "300",
+  "full_habitat_code": "3.4|14.3|4.4|1.4|6|3.8|1.3|3.2",
+  "scientific_name": "Two deux två",
+  "family_name": "NUMBER",
+  "class_name": "MAMMALIA",
+  "category": "EN",
+  "range_total": 133914029408.875,
+  "hab_total": 88190380681.45854,
+  "dem_total": 129205940713.25,
+  "aoh_total": 86741613961.4514,
+  "prevalence": 0.6477410495699915
+}

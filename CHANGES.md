@@ -9,6 +9,10 @@
 * Performance improvements and simplification to habitat processing.
 * Store more analysis data from model validation.
 
+### Fixed
+
+* Fixed a bug in collate data where it would fail to process any files.
+
 ## v1.0.1 (19/10/2025)
 
 ### Fixed
