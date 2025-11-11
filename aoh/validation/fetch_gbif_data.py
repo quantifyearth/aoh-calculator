@@ -21,11 +21,17 @@ def generate_iucn_to_gbif_map(
     # To save spamming the GBIF API, see if there's already a map
     # and if so we just request GBIF IDs for data we've not seen before
     map_filename = output_dir_path / "map.csv"
-    id_map : Dict[int,Tuple[str,str,int,Optional[int]]] = {}
+    id_map : Dict[int,Tuple[str,str,int,Optional[int],str]] = {}
     try:
         existing_map = pd.read_csv(map_filename)
         for _, row in existing_map.iterrows():
-            id_map[row.iucn_taxon_id] = (row.iucn_taxon_id, row.scientific_name, row.assessment_year, row.gbif_id, row.class_name)
+            id_map[row.iucn_taxon_id] = (
+                row.iucn_taxon_id,
+                row.scientific_name,
+                row.assessment_year,
+                row.gbif_id,
+                row.class_name
+            )
     except (AttributeError, FileNotFoundError):
         pass
 
@@ -98,7 +104,7 @@ def build_gbif_query(id_map: pd.DataFrame) -> Any:
                 {
                     "type": "greaterThan",
                     "key": "YEAR",
-                    "value": str(int(assessment_year)),
+                    "value": str(int(assessment_year)), # type: ignore
                 },
             ]
         }
