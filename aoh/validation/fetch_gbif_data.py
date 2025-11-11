@@ -135,12 +135,20 @@ def build_point_validation_table(
     gbif_data_path: Path,
     map_df: pd.DataFrame,
     output_csv_path: Path,
+    chunksize: int = 100_000,
 ) -> None:
-    gbif_data = pd.read_csv(gbif_data_path, sep='\t')
-    gbif_data.rename(columns={"speciesKey": "gbif_id"}, inplace=True)
-    updated_data = gbif_data.merge(map_df, on="gbif_id", how='inner')
-    necessary_columns = updated_data[["iucn_taxon_id", "gbif_id", "decimalLatitude", "decimalLongitude", "year"]]
-    necessary_columns.to_csv(output_csv_path, index=False)
+    first_chunk = True
+    for chunk in pd.read_csv(gbif_data_path, sep='\t', chunksize=chunksize, on_bad_lines='skip'):
+        chunk.rename(columns={"speciesKey": "gbif_id"}, inplace=True)
+        updated_data = chunk.merge(map_df, on="gbif_id", how='inner')
+        necessary_columns = updated_data[["iucn_taxon_id", "gbif_id", "decimalLatitude", "decimalLongitude", "year"]]
+        necessary_columns.to_csv(
+            output_csv_path,
+            mode='w' if first_chunk else 'a',
+            header=first_chunk,
+            index=False
+        )
+        first_chunk = False
 
 def fetch_gbif_data(
     collated_data_path: Path,

@@ -11,11 +11,10 @@ from aoh.validation.validate_occurences import process_species
 
 def test_empty_species_list() -> None:
     df = pd.DataFrame([], columns=['iucn_taxon_id', 'decimalLatitude', 'decimalLongitude'])
-    res = process_species(Path("/some/aohs"), df)
-    assert len(res) == 0
+    res = process_species(Path("/some/aohs"), Path("/some/aohs"), df)
+    assert res is None
 
 def generate_faux_aoh(filename: Path, shape: Polygon | None = None) -> None:
-
     shapes = [
         shape if shape is not None else Polygon([(0, 0), (0, 10), (10, 10), (10, 0)])
     ]
@@ -34,14 +33,16 @@ def generate_faux_aoh(filename: Path, shape: Polygon | None = None) -> None:
         "features": features
     }
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmpdir_path = Path(tmpdir)
-        geojson_path = tmpdir_path / "tmp.geojson"
-        with open(geojson_path, 'w', encoding="UTF-8") as f:
-            json.dump(geojson, f, indent=2)
+    geojson_path = filename.with_suffix('.geojson')
+    with open(geojson_path, 'w', encoding="UTF-8") as f:
+        json.dump(geojson, f, indent=2)
 
-        with yg.read_shape(geojson_path, ("epsg:4326", (1.0, -1.0))) as shape_layer:
-            shape_layer.to_geotiff(filename)
+    json_path = filename.with_suffix('.json')
+    with open(json_path, 'w', encoding='utf-8') as f:
+        json.dump({'prevalence': 1.0}, f)
+
+    with yg.read_shape(geojson_path, ("epsg:4326", (1.0, -1.0))) as shape_layer:
+        shape_layer.to_geotiff(filename)
 
 @pytest.mark.parametrize("taxon_id,latitude,longitude,expected",[
     (42, 5.0, 5.0, True),
@@ -60,12 +61,17 @@ def test_simple_match(taxon_id: int, latitude: float, longitude: float, expected
             [(taxon_id, latitude, longitude)],
             columns=['iucn_taxon_id', 'decimalLatitude', 'decimalLongitude']
         )
+        import os
+        print(os.listdir(tmpdir_path))
+        res = process_species(tmpdir_path, tmpdir_path, df)
 
-        res = process_species(tmpdir_path, df)
-
-        assert len(res) == len(df)
-        occurence = res.occurence[0]
-        assert occurence == expected
+        assert res is not None
+        id_no, results, matches, point_prev, model_prev, outlier = res
+        assert id_no == taxon_id
+        assert results == 1
+        assert matches == (1 if expected else 0)
+        assert model_prev == 1.0
+        assert outlier == expected
 
 def test_multiple_match() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -83,7 +89,7 @@ def test_multiple_match() -> None:
             columns=['iucn_taxon_id', 'decimalLatitude', 'decimalLongitude', 'expected']
         )
 
-        res = process_species(tmpdir_path, df)
+        res = process_species(tmpdir_path, tmpdir_path, df)
 
         assert len(res) == len(df)
         assert (res.occurence == res.expected).all()
@@ -99,7 +105,7 @@ def test_too_many_ids() -> None:
     )
 
     with pytest.raises(ValueError):
-        _ = process_species(Path("/some/aohs"), df)
+        _ = process_species(Path("/some/aohs"), Path("/some/aohs"), df)
 
 @pytest.mark.parametrize("taxon_id,latitude,longitude,expected",[
     (42, 5.0, 5.0, True),
@@ -124,7 +130,7 @@ def test_find_seasonal(taxon_id: int, latitude: float, longitude: float, expecte
             columns=['iucn_taxon_id', 'decimalLatitude', 'decimalLongitude']
         )
 
-        res = process_species(tmpdir_path, df)
+        res = process_species(tmpdir_path, tmpdir_path, df)
 
         assert len(res) == len(df)
         occurence = res.occurence[0]
