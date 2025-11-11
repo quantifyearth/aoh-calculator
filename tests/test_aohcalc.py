@@ -116,6 +116,8 @@ def generate_species_info(
 
 @pytest.mark.parametrize("force_habitat", [True, False])
 def test_simple_aoh(force_habitat) -> None:
+    dims = (200, 100)
+
     with tempfile.TemporaryDirectory() as tempdir:
         tmp = Path(tempdir)
 
@@ -123,14 +125,14 @@ def test_simple_aoh(force_habitat) -> None:
         os.makedirs(habitats_path, exist_ok=True)
         generate_habitat_maps(
             habitats_path,
-            (20, 10),
+            dims,
             {100, 200},
         )
 
         min_elevation_path = tmp / "elevation_min.tif"
-        generate_flat_elevation_map(min_elevation_path, (20, 10), -200)
+        generate_flat_elevation_map(min_elevation_path, dims, -200)
         max_elevation_path = tmp / "elevation_max.tif"
-        generate_flat_elevation_map(max_elevation_path, (20, 10), 1000)
+        generate_flat_elevation_map(max_elevation_path, dims, 1000)
 
         crosswalk = {
             "1.0": {100, 101, 102},
@@ -174,17 +176,17 @@ def test_simple_aoh(force_habitat) -> None:
 
         # Check calculated values. All habitat layers for this
         # test are 50%
-        assert manifest["range_total"] == 60
-        assert manifest["dem_total"] == 60
-        assert manifest["hab_total"] == 30
-        assert manifest["aoh_total"] == 30
+        assert manifest["range_total"] == dims[0] * dims[1] * 0.25
+        assert manifest["dem_total"] == dims[0] * dims[1] * 0.25
+        assert manifest["hab_total"] == dims[0] * dims[1] * 0.25 * 0.5
+        assert manifest["aoh_total"] == dims[0] * dims[1] * 0.25 * 0.5
         assert manifest["prevalence"] == 0.5
 
         with yg.read_raster(expected_geotiff_path) as result:
-            assert result.window.xsize == 10
-            assert result.window.ysize == 6
-            data = result.read_array(0, 0, 10, 6)
-        expected = np.full((6, 10), 0.5)
+            assert result.window.xsize == dims[0] / 2
+            assert result.window.ysize == dims[1] / 2
+            data = result.read_array(0, 0, result.window.xsize, result.window.ysize)
+        expected = np.full((result.window.ysize, result.window.xsize), 0.5)
         assert (data == expected).all()
 
 @pytest.mark.parametrize("force_habitat", [True, False])
@@ -257,6 +259,7 @@ def test_no_habitat_aoh(force_habitat) -> None:
 
 @pytest.mark.parametrize("force_habitat", [True, False])
 def test_simple_aoh_area(force_habitat) -> None:
+    dims = (200, 200)
     with tempfile.TemporaryDirectory() as tempdir:
         tmp = Path(tempdir)
 
@@ -264,14 +267,14 @@ def test_simple_aoh_area(force_habitat) -> None:
         os.makedirs(habitats_path, exist_ok=True)
         generate_habitat_maps(
             habitats_path,
-            (20, 10),
+            dims,
             {100, 200},
         )
 
         min_elevation_path = tmp / "elevation_min.tif"
-        generate_flat_elevation_map(min_elevation_path, (20, 10), -200)
+        generate_flat_elevation_map(min_elevation_path, dims, -200)
         max_elevation_path = tmp / "elevation_max.tif"
-        generate_flat_elevation_map(max_elevation_path, (20, 10), 1000)
+        generate_flat_elevation_map(max_elevation_path, dims, 1000)
 
         crosswalk = {
             "1.0": {100, 101, 102},
@@ -287,7 +290,8 @@ def test_simple_aoh_area(force_habitat) -> None:
         generate_species_info(species_data_path, (100, 200), {"1.1"})
 
         area_path = tmp / "area.tif"
-        generate_area_map(area_path, (20, 10), 42.0)
+        pixel_area = 4200000.0
+        generate_area_map(area_path, dims, pixel_area)
 
         output_dir = tmp / "results"
         aohcalc(
@@ -318,17 +322,18 @@ def test_simple_aoh_area(force_habitat) -> None:
 
         # Check calculated values. All habitat layers for this
         # test are 50%
-        assert manifest["range_total"] == 60 * 42.0
-        assert manifest["dem_total"] == 60 * 42.0
-        assert manifest["hab_total"] == 30 * 42.0
-        assert manifest["aoh_total"] == 30 * 42.0
+        area = dims[0] * dims[1] * 0.25
+        assert manifest["range_total"] == pytest.approx(area * pixel_area, rel=1e-7)
+        assert manifest["dem_total"] == pytest.approx(area * pixel_area, rel=1e-7)
+        assert manifest["hab_total"] == pytest.approx(area * pixel_area * 0.5, rel=1e-7)
+        assert manifest["aoh_total"] == pytest.approx(area * pixel_area * 0.5, rel=1e-7)
         assert manifest["prevalence"] == 0.5
 
         with yg.read_raster(expected_geotiff_path) as result:
-            assert result.window.xsize == 10
-            assert result.window.ysize == 6
-            data = result.read_array(0, 0, 10, 6)
-        expected = np.full((6, 10), 0.5 * 42.0)
+            assert result.window.xsize == dims[0] / 2
+            assert result.window.ysize == dims[1] / 2
+            data = result.read_array(0, 0, result.window.xsize, result.window.ysize)
+        expected = np.full((result.window.ysize, result.window.xsize), 0.5 * pixel_area)
         assert (data == expected).all()
 
 @pytest.mark.parametrize("force_habitat", [True, False])
