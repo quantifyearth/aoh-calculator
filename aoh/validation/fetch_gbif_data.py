@@ -83,38 +83,46 @@ def build_gbif_query(id_map: pd.DataFrame) -> Any:
     map_with_gbif_id = id_map[id_map.gbif_id.notna()]
     request_data = map_with_gbif_id[["assessment_year", "gbif_id"]]
 
+    # There should be tens of assessment years vs thousands of species, so we can use that to reduce the query count:
+    grouped = request_data.groupby('assessment_year')['gbif_id'].apply(list)
+
     queries = [
         {
             "type": "and",
             "predicates": [
                 {
-                    "type": "equals",
+                    "type": "in",
                     "key": "TAXON_KEY",
-                    "value": int(gbif_id),
+                    "values": [str(int(gbif_id)) for gbif_id in gbif_ids]
                 },
                 {
                     "type": "greaterThan",
                     "key": "YEAR",
-                    "value": int(assessment_year),
+                    "value": str(int(assessment_year)),
                 },
-                {
-                    "type": "equals",
-                    "key": "HAS_COORDINATE",
-                    "value": "TRUE"
-                },
-                {
-                    "type": "equals",
-                    "key": "HAS_GEOSPATIAL_ISSUE",
-                    "value": "FALSE"
-                }
             ]
         }
-        for assessment_year, gbif_id in request_data.itertuples(index=False)
+        for assessment_year, gbif_ids in grouped.items()
     ]
 
     return {
-        "type": "or",
-        "predicates": queries
+        "type": "and",
+        "predicates": [
+            {
+                "type": "or",
+                "predicates": queries
+            },
+            {
+                "type": "equals",
+                "key": "HAS_COORDINATE",
+                "value": "TRUE"
+            },
+            {
+                "type": "equals",
+                "key": "HAS_GEOSPATIAL_ISSUE",
+                "value": "FALSE"
+            },
+        ]
     }
 
 def build_point_validation_table(
