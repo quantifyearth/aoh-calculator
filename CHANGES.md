@@ -1,4 +1,4 @@
-## v1.1.0 (4/11/2025)
+## v1.1.0 (11/11/2025)
 
 ### Added
 
@@ -8,6 +8,7 @@
 
 * Performance improvements and simplification to habitat processing.
 * Store more analysis data from model validation.
+* Improve performance of GBIF occurence data fetches.
 
 ### Fixed
 

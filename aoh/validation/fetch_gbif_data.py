@@ -14,27 +14,36 @@ from pygbif.occurrences.download import GbifDownload # type: ignore
 def generate_iucn_to_gbif_map(
     collated_data_path: Path,
     output_dir_path: Path,
+    taxa: str,
 ) -> pd.DataFrame:
     collated_data = pd.read_csv(collated_data_path)
 
     # To save spamming the GBIF API, see if there's already a map
     # and if so we just request GBIF IDs for data we've not seen before
     map_filename = output_dir_path / "map.csv"
-    id_map : Dict[int,Tuple[str,str,int,Optional[int]]] = {}
+    id_map : Dict[int,Tuple[str,str,int,Optional[int],str]] = {}
     try:
         existing_map = pd.read_csv(map_filename)
         for _, row in existing_map.iterrows():
-            id_map[row.iucn_taxon_id] = (row.iucn_taxon_id, row.scientific_name, row.assessment_year, row.gbif_id)
+            id_map[row.iucn_taxon_id] = (
+                row.iucn_taxon_id,
+                row.scientific_name,
+                row.assessment_year,
+                row.gbif_id,
+                row.class_name
+            )
     except (AttributeError, FileNotFoundError):
         pass
 
     # First we make a map
-    for _, row in collated_data.iterrows():
+    for _, row in collated_data[collated_data.class_name==taxa].iterrows():
         taxon_id = row.id_no
         if taxon_id in id_map:
+            print(f"skipping {taxon_id}")
             continue
         assessment_year = row.assessment_year
         scientific_name = row.scientific_name
+        class_name = row.class_name
 
         if not assessment_year:
             continue
@@ -47,27 +56,28 @@ def generate_iucn_to_gbif_map(
                 raise ValueError("no match found")
             gbif_id = result["usageKey"]
 
-            id_map[taxon_id] = (taxon_id, scientific_name, assessment_year, int(gbif_id))
+            id_map[taxon_id] = (taxon_id, scientific_name, assessment_year, int(gbif_id), class_name)
         except (KeyError, ValueError):
-            id_map[taxon_id] = (taxon_id, scientific_name, assessment_year, None)
-        except requests.exceptions.ConnectionError:
+            id_map[taxon_id] = (taxon_id, scientific_name, assessment_year, None, class_name)
+        except requests.exceptions.ConnectionError as exc:
             # GBIF is not longer happy to talk to us? We should cache whatever data we already
             # have and give up
             map_data = id_map.values()
             map_df = pd.DataFrame(
                 map_data,
-                columns=["iucn_taxon_id", "scientific_name", "assessment_year", "gbif_id"],
+                columns=["iucn_taxon_id", "scientific_name", "assessment_year", "gbif_id", "class_name"],
             )
             map_df["gbif_id"] = map_df["gbif_id"].astype('Int64')
             map_df.to_csv(map_filename, index=False)
+            print(exc)
             sys.exit("Connection error from GBIF, aborting.")
 
-        time.sleep(0.1) # rate limiting
+        time.sleep(0.5) # rate limiting
 
     map_data = id_map.values()
     map_df = pd.DataFrame(
         map_data,
-        columns=["iucn_taxon_id", "scientific_name", "assessment_year", "gbif_id"],
+        columns=["iucn_taxon_id", "scientific_name", "assessment_year", "gbif_id", "class_name"],
     )
     map_df["gbif_id"] = map_df["gbif_id"].astype('Int64')
     map_df.to_csv(map_filename, index=False)
@@ -76,40 +86,49 @@ def generate_iucn_to_gbif_map(
 
 def build_gbif_query(id_map: pd.DataFrame) -> Any:
 
-    map_with_gbif_id = id_map[id_map.gbif_id is not None]
+    map_with_gbif_id = id_map[id_map.gbif_id.notna()]
+    request_data = map_with_gbif_id[["assessment_year", "gbif_id"]]
+
+    # There should be tens of assessment years vs thousands of species, so we can use that to reduce the query count:
+    grouped = request_data.groupby('assessment_year')['gbif_id'].apply(list)
 
     queries = [
         {
             "type": "and",
             "predicates": [
                 {
-                    "type": "equals",
+                    "type": "in",
                     "key": "TAXON_KEY",
-                    "value": int(gbif_id),
+                    "values": [str(int(gbif_id)) for gbif_id in gbif_ids]
                 },
                 {
                     "type": "greaterThan",
                     "key": "YEAR",
-                    "value": int(assessment_year),
+                    "value": str(int(assessment_year)), # type: ignore
                 },
-                {
-                    "type": "equals",
-                    "key": "HAS_COORDINATE",
-                    "value": "TRUE"
-                },
-                {
-                    "type": "equals",
-                    "key": "HAS_GEOSPATIAL_ISSUE",
-                    "value": "FALSE"
-                }
             ]
         }
-        for _, _, assessment_year, gbif_id in map_with_gbif_id.itertuples(index=False)
+        for assessment_year, gbif_ids in grouped.items()
     ]
 
     return {
-        "type": "or",
-        "predicates": queries
+        "type": "and",
+        "predicates": [
+            {
+                "type": "or",
+                "predicates": queries
+            },
+            {
+                "type": "equals",
+                "key": "HAS_COORDINATE",
+                "value": "TRUE"
+            },
+            {
+                "type": "equals",
+                "key": "HAS_GEOSPATIAL_ISSUE",
+                "value": "FALSE"
+            },
+        ]
     }
 
 def build_point_validation_table(
@@ -125,19 +144,21 @@ def build_point_validation_table(
 
 def fetch_gbif_data(
     collated_data_path: Path,
-    gbif_username : str,
+    taxa: str,
+    gbif_username: str,
     gbif_email: str,
     gbif_password: str,
-    output_dir_path: Path,
+    toplevel_output_dir_path: Path,
 ) -> None:
-    final_result_path = output_dir_path / "points.csv"
+    taxa_output_dir_path = toplevel_output_dir_path / taxa
+    final_result_path = taxa_output_dir_path / "points.csv"
     if final_result_path.exists():
         return
 
-    os.makedirs(output_dir_path, exist_ok=True)
-    download_key_cache_filename = output_dir_path / "download_key"
+    os.makedirs(taxa_output_dir_path, exist_ok=True)
+    download_key_cache_filename = taxa_output_dir_path / "download_key"
 
-    map_df = generate_iucn_to_gbif_map(collated_data_path, output_dir_path)
+    map_df = generate_iucn_to_gbif_map(collated_data_path, taxa_output_dir_path, taxa)
     if map_df is None or len(map_df) == 0:
         sys.exit("No specices in GBIF ID list, aborting")
 
@@ -147,16 +168,16 @@ def fetch_gbif_data(
         request.add_predicate_dict(query)
 
         download_key = request.post_download(gbif_username, gbif_password)
-        download_key_cache_filename = output_dir_path / "download_key"
+        download_key_cache_filename = taxa_output_dir_path / "download_key"
         with open(download_key_cache_filename, "w", encoding="UTF-8") as f:
             f.write(download_key)
     else:
         with open(download_key_cache_filename, "r", encoding="UTF-8") as f:
             download_key = f.read()
 
-    expected_csv = output_dir_path / f"{download_key}.csv"
+    expected_csv = taxa_output_dir_path / f"{download_key}.csv"
     if not expected_csv.exists():
-        expected_download = output_dir_path / f"{download_key}.zip"
+        expected_download = taxa_output_dir_path / f"{download_key}.zip"
         if not expected_download.exists():
             while True:
                 metadata = pygbif.occurrences.download_meta(download_key)
@@ -166,13 +187,13 @@ def fetch_gbif_data(
                         time.sleep(30.0)
                         continue
                     case "SUCCEEDED":
-                        file_path = pygbif.occurrences.download_get(download_key, path=output_dir_path)
+                        file_path = pygbif.occurrences.download_get(download_key, path=taxa_output_dir_path)
                         print(f"Results are in {file_path}")
                         break
                     case _:
                         sys.exit(f"Failed to download data, status: {metadata['status']}")
         with zipfile.ZipFile(expected_download, 'r') as zip_file:
-            zip_file.extractall(output_dir_path)
+            zip_file.extractall(taxa_output_dir_path)
         if not expected_csv.exists():
             sys.exit("Extracted GBIF zip did not contain expected CSV file")
 
@@ -222,6 +243,12 @@ Environment Variables:
         dest="gbif_password",
     )
     parser.add_argument(
+        '--taxa',
+        type=str,
+        required=True,
+        dest='taxa',
+    )
+    parser.add_argument(
         "--output_dir",
         type=Path,
         required=True,
@@ -239,6 +266,7 @@ Environment Variables:
 
     fetch_gbif_data(
         args.collated_data_path,
+        args.taxa,
         args.gbif_username,
         args.gbif_email,
         args.gbif_password,
