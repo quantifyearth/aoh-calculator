@@ -18,6 +18,8 @@ For validation tools that require R, install with the validation extra:
 pip install aoh[validation]
 ```
 
+You will also need to following R packages installed: lme4, lmerTest, broom.mixed, emmeans, report, sklearn
+
 ### Prerequisites
 
 You'll need GDAL installed on your system. The Python GDAL package version should match your system GDAL version. You can check your GDAL version with:
