@@ -137,7 +137,7 @@ def build_point_validation_table(
     output_csv_path: Path,
 ) -> None:
     gbif_data = pd.read_csv(gbif_data_path, sep='\t')
-    gbif_data.rename(columns={"taxonKey": "gbif_id"}, inplace=True)
+    gbif_data.rename(columns={"speciesKey": "gbif_id"}, inplace=True)
     updated_data = gbif_data.merge(map_df, on="gbif_id", how='inner')
     necessary_columns = updated_data[["iucn_taxon_id", "gbif_id", "decimalLatitude", "decimalLongitude", "year"]]
     necessary_columns.to_csv(output_csv_path, index=False)
