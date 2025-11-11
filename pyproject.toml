@@ -39,6 +39,13 @@ dependencies = [
 [project.optional-dependencies]
 validation = [
     "pymer4==0.8.2",
+    "rpy2",
+    "joblib",
+    "seaborn",
+    "matplotlib",
+    "great_tables",
+    "scikit-learn",
+    "formulae",
     "pygbif",
 ]
 dev = [
