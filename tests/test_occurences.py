@@ -47,7 +47,6 @@ def generate_faux_aoh(filename: Path, shape: Polygon | None = None) -> None:
 @pytest.mark.parametrize("taxon_id,latitude,longitude,expected",[
     (42, 5.0, 5.0, True),
     (42, 12.0, 12.0, False),
-    (40, 5.0, 5.0, False),
 ])
 def test_simple_match(taxon_id: int, latitude: float, longitude: float, expected: bool) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -61,17 +60,29 @@ def test_simple_match(taxon_id: int, latitude: float, longitude: float, expected
             [(taxon_id, latitude, longitude)],
             columns=['iucn_taxon_id', 'decimalLatitude', 'decimalLongitude']
         )
-        import os
-        print(os.listdir(tmpdir_path))
         res = process_species(tmpdir_path, tmpdir_path, df)
 
-        assert res is not None
         id_no, results, matches, point_prev, model_prev, outlier = res
         assert id_no == taxon_id
         assert results == 1
         assert matches == (1 if expected else 0)
         assert model_prev == 1.0
         assert outlier == expected
+
+def test_no_aoh_found(taxon_id: int, latitude: float, longitude: float, expected: bool) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        for test_id in [41, 42, 43]:
+            aoh_path = tmpdir_path / f"{test_id}.tif"
+            generate_faux_aoh(aoh_path)
+
+        df = pd.DataFrame(
+            [(40, 5.0, 5.0)],
+            columns=['iucn_taxon_id', 'decimalLatitude', 'decimalLongitude']
+        )
+        with pytest.raises(FileNotFoundError):
+            _ = process_species(tmpdir_path, tmpdir_path, df)
 
 def test_multiple_match() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
