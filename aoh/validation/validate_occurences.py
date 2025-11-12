@@ -56,6 +56,7 @@ def process_species(
     clipped_points = gpd.sjoin(points_gdf, species_range, predicate='within', how='inner')
 
     pixel_set = set()
+    tested = 0
     with yg.read_raster(aoh_files[0]) as aoh:
         results = []
         for _, row in clipped_points.iterrows():
@@ -69,22 +70,36 @@ def process_species(
 
             value = aoh.read_array(pixel_x, pixel_y, 1, 1)
             results.append(value[0][0] > 0.0)
+            tested += 1
 
     # From Dahal et al: "Finally, we excluded species which had fewer than 10 point localities after
     # all the filters were applied."
-    if len(results) < 10:
+    if tested < 10:
         raise ValueError("Not enough occurrences")
 
     matches = len([x for x in results if x])
     point_prevalence = matches / len(results)
     model_prevalence = aoh_data['prevalence']
+
+    # From Dahal et al: "If the point prevalence exceeded model prevalence at
+    # species level, the AOH maps performed better than random,
+    # otherwise they were no better than random."
+    #
+    # However, note that this means if you have a point prevalence of 1.0 (all
+    # points match) and a model prevalence of 1.0 (range and AOH match, which
+    # under the IUCN method is the preferred fallback if we have zero on either
+    # elevation filtering or habitat filtering), then that would still be marked
+    # as an outlier, (as 1.0 is not exceeding 1.0) which seems wrong, so I'm
+    # special casing that.
+    is_outlier = (point_prevalence != 1.0) and (point_prevalence < model_prevalence)
+
     return (
         taxon_id,
         len(results),
         matches,
         point_prevalence,
         model_prevalence,
-        point_prevalence <= model_prevalence
+        is_outlier,
     )
 
 def process_species_wrapper(
@@ -127,8 +142,8 @@ def validate_occurrences(
         "model prevalence",
         "outlier",
     ])
-    summary = summary[summary.outlier == True]
-    summary.to_csv(output_path, index=False)
+    outliers = summary[summary.outlier is True]
+    outliers.to_csv(output_path, index=False)
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Validate map prevalence.")
