@@ -52,6 +52,7 @@ dev = [
     "pylint",
     "mypy",
     "pytest",
+    "types-geopandas",
     "types-psutil",
     "types-requests",
     "types-shapely",
