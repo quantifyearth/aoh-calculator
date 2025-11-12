@@ -79,19 +79,19 @@ def generate_faux_aoh(filename: Path, aoh_radius:float=5.0, range_radius:float=1
         with yg.read_shape(aoh_geojson, ("epsg:4326", (0.1, -0.1))) as shape_layer:
             shape_layer.to_geotiff(filename)
 
-@pytest.mark.parametrize("taxon_id,latitude,longitude,expected_reject,expected_outlier",[
-    (42, 0.0, 0.0, False, False), # all in AoH
-    (42, 0.0, 4.0, False, False), # Most in AOH, a few in range
-    (42, 0.0, 6.5, False, True), # Most in range, a few in AOH
-    (42, 0.0, 7.5, False, True),  # all in range but not AOH
-    (42, 0.0, 11.0, True, None),  # most out of range
-    (42, 0.0, 20.0, True, None), # all out of range
+@pytest.mark.parametrize("taxon_id,latitude,longitude,is_valid,expected_outlier",[
+    (42, 0.0, 0.0, True, False), # all in AoH
+    (42, 0.0, 4.0, True, False), # Most in AOH, a few in range
+    (42, 0.0, 6.5, True, True), # Most in range, a few in AOH
+    (42, 0.0, 7.5, True, True),  # all in range but not AOH
+    (42, 0.0, 11.0, False, None),  # most out of range
+    (42, 0.0, 20.0, False, None), # all out of range
 ])
 def test_simple_match_in_out_range(
     taxon_id: int,
     latitude: float,
     longitude: float,
-    expected_reject: bool,
+    is_valid: bool,
     expected_outlier: bool,
 ) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -106,32 +106,22 @@ def test_simple_match_in_out_range(
             [(taxon_id, lat, lng) for (lat, lng) in occurences],
             columns=['iucn_taxon_id', 'decimalLatitude', 'decimalLongitude']
         )
+        result = process_species(tmpdir_path, tmpdir_path, df)
+        assert result.iucn_taxon_id == taxon_id
+        assert result.total_records == len(occurences)
+        assert result.is_valid == is_valid
+        assert result.is_outlier == expected_outlier
 
-        if not expected_reject:
-            res = process_species(tmpdir_path, tmpdir_path, df)
-            id_no, results, _matches, _point_prev, _model_prev, outlier = res
-            print(res)
-            assert id_no == taxon_id
-            assert results == len(occurences)
-            assert outlier == expected_outlier
-        else:
-            with pytest.raises(ValueError):
-                _ = process_species(tmpdir_path, tmpdir_path, df)
-
-@pytest.mark.parametrize("taxon_id,latitude,longitude,expected_prev,expected_reject,expected_outlier",[
-    (42, 0.0, 0.0, 1.0, False, False), # all in AoH
-    # (42, 0.0, 4.0, False, False), # Most in AOH, a few in range
-    # (42, 0.0, 6.5, False, True), # Most in range, a few in AOH
-    # (42, 0.0, 7.5, False, True),  # all in range but not AOH
-    # (42, 0.0, 11.0, True, None),  # most out of range
-    (42, 0.0, 20.0, 0.0, True, None), # all out of range
+@pytest.mark.parametrize("taxon_id,latitude,longitude,expected_prev,is_valid,expected_outlier",[
+    (42, 0.0, 0.0, 1.0, True, False), # all in AoH
+    (42, 0.0, 20.0, None, False, None), # all out of range
 ])
 def test_model_prevalence_of_one(
     taxon_id: int,
     latitude: float,
     longitude: float,
     expected_prev: float,
-    expected_reject: bool,
+    is_valid: bool,
     expected_outlier: bool,
 ) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -147,18 +137,13 @@ def test_model_prevalence_of_one(
             columns=['iucn_taxon_id', 'decimalLatitude', 'decimalLongitude']
         )
 
-        if not expected_reject:
-            res = process_species(tmpdir_path, tmpdir_path, df)
-            id_no, results, _matches, point_prev, model_prev, outlier = res
-            print(res)
-            assert id_no == taxon_id
-            assert results == len(occurences)
-            assert point_prev == expected_prev
-            assert model_prev == 1.0
-            assert outlier == expected_outlier
-        else:
-            with pytest.raises(ValueError):
-                _ = process_species(tmpdir_path, tmpdir_path, df)
+        result = process_species(tmpdir_path, tmpdir_path, df)
+        assert result.iucn_taxon_id == taxon_id
+        assert result.total_records == len(occurences)
+        assert result.point_prevalence == expected_prev
+        assert result.model_prevalence == 1.0
+        assert result.is_valid == is_valid
+        assert result.is_outlier == expected_outlier
 
 def test_no_aoh_found() -> None:
     with tempfile.TemporaryDirectory() as tmpdir:

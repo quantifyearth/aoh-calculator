@@ -4,17 +4,29 @@ import os
 from functools import partial
 from multiprocessing import cpu_count, Pool
 from pathlib import Path
+from typing import NamedTuple
 
 import geopandas as gpd
 import pandas as pd
 import yirgacheffe as yg
 from shapely.geometry import Point
 
+class Record(NamedTuple):
+    iucn_taxon_id: int
+    total_records: int
+    clipped_points: int
+    unique_points: int
+    matches: int
+    point_prevalence: float | None
+    model_prevalence: float
+    is_valid: bool
+    is_outlier: bool | None
+
 def process_species(
     aohs_path: Path,
     species_data_path: Path,
     species_occurrences: pd.DataFrame,
-) -> tuple[int, int, int, float, float, bool]:
+) -> Record:
 
     if len(species_occurrences) == 0:
         raise ValueError("No occurrences")
@@ -56,7 +68,6 @@ def process_species(
     clipped_points = gpd.sjoin(points_gdf, species_range, predicate='within', how='inner')
 
     pixel_set = set()
-    tested = 0
     with yg.read_raster(aoh_files[0]) as aoh:
         results = []
         for _, row in clipped_points.iterrows():
@@ -70,43 +81,49 @@ def process_species(
 
             value = aoh.read_array(pixel_x, pixel_y, 1, 1)
             results.append(value[0][0] > 0.0)
-            tested += 1
 
     # From Dahal et al: "Finally, we excluded species which had fewer than 10 point localities after
     # all the filters were applied."
-    if tested < 10:
-        raise ValueError("Not enough occurrences")
+    is_valid = len(results) >= 10
 
-    matches = len([x for x in results if x])
-    point_prevalence = matches / len(results)
     model_prevalence = aoh_data['prevalence']
+    matches = len([x for x in results if x])
+    if is_valid:
+        point_prevalence = matches / len(results)
 
-    # From Dahal et al: "If the point prevalence exceeded model prevalence at
-    # species level, the AOH maps performed better than random,
-    # otherwise they were no better than random."
-    #
-    # However, note that this means if you have a point prevalence of 1.0 (all
-    # points match) and a model prevalence of 1.0 (range and AOH match, which
-    # under the IUCN method is the preferred fallback if we have zero on either
-    # elevation filtering or habitat filtering), then that would still be marked
-    # as an outlier, (as 1.0 is not exceeding 1.0) which seems wrong, so I'm
-    # special casing that.
-    is_outlier = (point_prevalence != 1.0) and (point_prevalence < model_prevalence)
+        # From Dahal et al: "If the point prevalence exceeded model prevalence at
+        # species level, the AOH maps performed better than random,
+        # otherwise they were no better than random."
+        #
+        # However, note that this means if you have a point prevalence of 1.0 (all
+        # points match) and a model prevalence of 1.0 (range and AOH match, which
+        # under the IUCN method is the preferred fallback if we have zero on either
+        # elevation filtering or habitat filtering), then that would still be marked
+        # as an outlier, (as 1.0 is not exceeding 1.0) which seems wrong, so I'm
+        # special casing that.
+        is_outlier = (point_prevalence != 1.0) and (point_prevalence < model_prevalence)
+    else:
+        point_prevalence = None
+        is_outlier = None
 
-    return (
-        taxon_id,
-        len(results),
-        matches,
-        point_prevalence,
-        model_prevalence,
-        is_outlier,
+
+    return Record(
+        taxon_id,                           # Species Redlist ID
+        len(species_occurrences),           # Raw number of occurrences from GBIF
+        len(clipped_points),                # Number of occurrences clipped to species range
+        len(results),                       # Number of unique occurrences by pixel
+        matches,                            # Number of occurrences within AOH
+        point_prevalence,                   # Point prevalence as per Dahal et al
+        model_prevalence,                   # Model prevalence as per Dahal et al
+        is_valid,                           # Whether we consider the result valid
+        is_outlier,                         # Whether species is considered an outlier
     )
 
 def process_species_wrapper(
     aohs_path: Path,
     species_data_path: Path,
     species_occurrences: pd.DataFrame,
-) -> tuple[int, int, int, float, float, bool] | None:
+) -> Record | None:
     # This wrapper exists to make it easier to write unit tests for process species by having it thrown
     # unique exceptions for each failure, but allowing us to use pool.map to invoke it which won't
     # tolerate those.
@@ -134,16 +151,8 @@ def validate_occurrences(
         results_per_species = pool.map(partial(process_species, aohs_path, species_data_path), occurrences_per_species)
     cleaned_results = [x for x in results_per_species if x is not None]
 
-    summary = pd.DataFrame(cleaned_results, columns=[
-        "id_no",
-        "occurrences",
-        "in_aoh",
-        "point prevalence",
-        "model prevalence",
-        "outlier",
-    ])
-    outliers = summary[summary.outlier is True]
-    outliers.to_csv(output_path, index=False)
+    summary = pd.DataFrame(cleaned_results)
+    summary.to_csv(output_path, index=False)
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Validate map prevalence.")
@@ -179,7 +188,7 @@ def main() -> None:
         "-j",
         type=int,
         required=False,
-        default=round(cpu_count() / 2),
+        default=cpu_count(),
         dest="processes_count",
         help="Optional number of concurrent threads to use."
     )
