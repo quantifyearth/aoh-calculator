@@ -36,7 +36,7 @@ def process_species(
         raise ValueError("Too many taxon IDs")
     taxon_id = taxon_ids[0]
 
-    aoh_files = list(aohs_path.glob(f"**/{taxon_id}*.tif"))
+    aoh_files = list(aohs_path.glob(f"**/{taxon_id}_*.tif"))
     # We here are aborting on those species with no data or those
     # with multiple seasons
     if len(aoh_files) == 0:
@@ -49,9 +49,11 @@ def process_species(
     with open(aoh_data_path, 'r', encoding='utf-8') as f:
         aoh_data = json.load(f)
 
-    species_data_files = list(species_data_path.glob(f"**/{taxon_id}*.geojson"))
+    species_data_files = list(species_data_path.glob(f"**/{taxon_id}_*.geojson"))
     if len(species_data_files) != 1:
-        raise RuntimeError(f"We expected one JSON file beside the GeoTIFF, we found {len(species_data_files)}")
+        raise RuntimeError(
+            f"We expected one GeoJSON file beside the GeoTIFF, we found {len(species_data_files)} for {taxon_id}"
+        )
     species_range = gpd.read_file(species_data_files[0])
 
     # From Dahal et al: "This ensured that we only included points which fell inside
@@ -148,14 +150,18 @@ def validate_occurrences(
     occurrences.sort_values(['iucn_taxon_id', 'decimalLatitude'], inplace=True)
     occurrences_per_species = [group for _, group in occurrences.groupby('iucn_taxon_id')]
     with Pool(processes=process_count) as pool:
-        results_per_species = pool.map(partial(process_species, aohs_path, species_data_path), occurrences_per_species)
+        results_per_species = pool.map(partial(
+            process_species_wrapper,
+            aohs_path,
+            species_data_path
+        ), occurrences_per_species)
     cleaned_results = [x for x in results_per_species if x is not None]
 
     summary = pd.DataFrame(cleaned_results)
     summary.to_csv(output_path, index=False)
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Validate map prevalence.")
+    parser = argparse.ArgumentParser(description="Validate occurrence prevelance.")
     parser.add_argument(
         '--gbif_data_path',
         type=Path,

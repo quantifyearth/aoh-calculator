@@ -219,3 +219,62 @@ options:
 This will produce a CSV file listing just the AoH maps that fail model validation.
 
 **Note:** The validation tools require R to be installed on your system with the `lme4` and `lmerTest` packages.
+
+## aoh-fetch-gbif-data
+
+This command fetches occurrence data from [GBIF](https://gbif.org) to do occurrence checking as per Dahal et al.
+
+```bash
+$ aoh-fetch-gbif-data --help
+usage: aoh-fetch-gbif-data [-h] --collated_aoh_data COLLATED_DATA_PATH [--gbif_username GBIF_USERNAME] [--gbif_email GBIF_EMAIL] [--gbif_password GBIF_PASSWORD] --taxa TAXA --output_dir OUTPUT_DIR_PATH
+
+Fetch GBIF records for species for validation.
+
+options:
+  -h, --help            show this help message and exit
+  --collated_aoh_data COLLATED_DATA_PATH
+                        CSV containing collated AoH data
+  --gbif_username GBIF_USERNAME
+                        Username of user's GBIF account. Can also be set in environment.
+  --gbif_email GBIF_EMAIL
+                        E-mail of user's GBIF account. Can also be set in environment.
+  --gbif_password GBIF_PASSWORD
+                        Password of user's GBIF account. Can also be set in environment.
+  --taxa TAXA
+  --output_dir OUTPUT_DIR_PATH
+                        Destination directory for GBIF data.
+
+Environment Variables:
+    GBIF_USERNAME   Username of user's GBIF account.
+    GBIF_EMAIL      E-mail of user's GBIF account.
+    GBIF_PASSWORD   Password of user's GBIF account.
+```
+
+Important notes:
+
+1. You will need a GBIF account for this.
+2. This can take a long time, particularly for birds as there are so many records.
+3. It can also generate a lot of data, hundreds of gigabytes worth, so ensure you have enough storage space!
+
+## aoh-validate-occurrences
+
+This command will run occurrence validation using the GBIF data fetched with the previous command.
+
+```bash
+aoh-validate-occurences --help
+usage: aoh-validate-occurences [-h] --gbif_data_path GBIF_DATA_PATH --species_data SPECIES_DATA_PATH --aoh_results AOHS_PATH --output OUTPUT_PATH [-j PROCESSES_COUNT]
+
+Validate occurrence prevelance.
+
+options:
+  -h, --help            show this help message and exit
+  --gbif_data_path GBIF_DATA_PATH
+                        Data containing downloaded GBIF data.
+  --species_data SPECIES_DATA_PATH
+                        Path of all the species range data.
+  --aoh_results AOHS_PATH
+                        Path of all the AoH outputs.
+  --output OUTPUT_PATH  CSV of outliers.
+  -j PROCESSES_COUNT    Optional number of concurrent threads to use.
+```
+

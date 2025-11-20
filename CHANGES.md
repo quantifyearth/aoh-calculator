@@ -8,7 +8,7 @@
 
 * Performance improvements and simplification to habitat processing.
 * Store more analysis data from model validation.
-* Improve performance of GBIF occurence data fetches.
+* Improve performance of GBIF occurrence data fetches.
 
 ### Fixed
 

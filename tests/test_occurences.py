@@ -98,7 +98,7 @@ def test_simple_match_in_out_range(
         tmpdir_path = Path(tmpdir)
 
         for test_id in [41, 42, 43]:
-            aoh_path = tmpdir_path / f"{test_id}.tif"
+            aoh_path = tmpdir_path / f"{test_id}_RESIDENT.tif"
             generate_faux_aoh(aoh_path)
 
         occurences = generate_occurrence_cluster(latitude, longitude, 20, 2.0)
@@ -116,7 +116,7 @@ def test_simple_match_in_out_range(
     (42, 0.0, 0.0, 1.0, True, False), # all in AoH
     (42, 0.0, 20.0, None, False, None), # all out of range
 ])
-def test_model_prevalence_of_one(
+def test_occurrence_prevalence_of_one(
     taxon_id: int,
     latitude: float,
     longitude: float,
@@ -128,7 +128,7 @@ def test_model_prevalence_of_one(
         tmpdir_path = Path(tmpdir)
 
         for test_id in [41, 42, 43]:
-            aoh_path = tmpdir_path / f"{test_id}.tif"
+            aoh_path = tmpdir_path / f"{test_id}_RESIDENT.tif"
             generate_faux_aoh(aoh_path, aoh_radius=5.0, range_radius=5.0)
 
         occurences = generate_occurrence_cluster(latitude, longitude, 20, 2.0)
@@ -150,7 +150,7 @@ def test_no_aoh_found() -> None:
         tmpdir_path = Path(tmpdir)
 
         for test_id in [41, 42, 43]:
-            aoh_path = tmpdir_path / f"{test_id}.tif"
+            aoh_path = tmpdir_path / f"{test_id}_RESIDENT.tif"
             generate_faux_aoh(aoh_path)
 
         df = pd.DataFrame(
