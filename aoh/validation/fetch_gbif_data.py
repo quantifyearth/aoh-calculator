@@ -137,18 +137,55 @@ def build_point_validation_table(
     output_csv_path: Path,
     chunksize: int = 100_000,
 ) -> None:
+    # The challenge here is that the GBIF download format is problematic. For instance, the file extension
+    # is CSV, but the data within is clearly tab separated: https://www.gbif.org/faq?q=csv
+    # Parsing these files with pandas we get warnings of mixed data types in columns which seems to be it
+    # failing to deal with some escaping issues. Thus the read file here tries to be somewhat defensive
+    # but is not perfect.
     first_chunk = True
-    for chunk in pd.read_csv(gbif_data_path, sep='\t', chunksize=chunksize, on_bad_lines='skip'):
+    total_rows = 0
+    skipped_rows = 0
+    for chunk in pd.read_csv(
+        gbif_data_path,
+        sep='\t',             # Is a TSV file despite the CSV file extension
+        chunksize=chunksize,
+        on_bad_lines='skip',  # Skip rows with wrong number of columns
+        low_memory=False,     # Avoid dtype warnings
+        encoding='utf-8',     # GBIF uses UTF-8
+        quotechar='"',        # Standard quote character
+        escapechar='\\',      # Handle escaped characters
+    ):
+        valid_mask = (
+            pd.to_numeric(chunk['speciesKey'], errors='coerce').notna() &
+            pd.to_numeric(chunk['decimalLatitude'], errors='coerce').notna() &
+            pd.to_numeric(chunk['decimalLongitude'], errors='coerce').notna() &
+            pd.to_numeric(chunk['year'], errors='coerce').notna()
+        )
+
+        skipped_rows += (~valid_mask).sum()
+        chunk = chunk[valid_mask]
+
+        # Force correct types once the invalid data has been removed
+        chunk['speciesKey'] = pd.to_numeric(chunk['speciesKey'], errors='coerce')
+        chunk['decimalLatitude'] = pd.to_numeric(chunk['decimalLatitude'], errors='coerce')
+        chunk['decimalLongitude'] = pd.to_numeric(chunk['decimalLongitude'], errors='coerce')
+        chunk['year'] = pd.to_numeric(chunk['year'], errors='coerce')
+
         chunk.rename(columns={"speciesKey": "gbif_id"}, inplace=True)
         updated_data = chunk.merge(map_df, on="gbif_id", how='inner')
         necessary_columns = updated_data[["iucn_taxon_id", "gbif_id", "decimalLatitude", "decimalLongitude", "year"]]
+
         necessary_columns.to_csv(
             output_csv_path,
             mode='w' if first_chunk else 'a',
             header=first_chunk,
             index=False
         )
+        total_rows += len(necessary_columns)
         first_chunk = False
+
+    print(f"Wrote {total_rows} rows to {output_csv_path}")
+    print(f"Skipped {skipped_rows} rows due to invalid/missing data")
 
 def fetch_gbif_data(
     collated_data_path: Path,
