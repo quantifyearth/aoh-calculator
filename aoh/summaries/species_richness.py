@@ -1,14 +1,15 @@
 import argparse
+import operator
 import os
+import resource
 import sys
 import tempfile
 import time
+from functools import reduce
 from pathlib import Path
 from multiprocessing import Manager, Process, Queue, cpu_count
-from typing import Dict, Set
 
-from yirgacheffe.layers import RasterLayer  # type: ignore
-from yirgacheffe.operators import DataType  # type: ignore
+import yirgacheffe as yg
 
 def stage_1_worker(
     filename: str,
@@ -17,44 +18,26 @@ def stage_1_worker(
 ) -> None:
     output_tif = os.path.join(result_dir, filename)
 
-    merged_result = None
+    merged_result = 0
+
+    # We will open a lot of files here. Kanske Yirgacheffe should do something
+    # here.
+    _, max_fd_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
+    resource.setrlimit(resource.RLIMIT_NOFILE, (max_fd_limit, max_fd_limit))
 
     while True:
+        # The expectation is the input is a list of seasonal rasters
+        # for the same species (typically just one, not always)
         raster_paths = input_queue.get()
         if raster_paths is None:
             break
 
-        rasters = [RasterLayer.layer_from_file(x) for x in raster_paths]
+        rasters = [yg.read_raster(x) for x in raster_paths]
+        binary_species_layer = reduce(operator.or_, [x != 0.0 for x in rasters])
+        merged_result = binary_species_layer + merged_result
 
-        if len(rasters) > 1:
-            union = RasterLayer.find_union(rasters)
-            for r in rasters:
-                r.set_window_for_union(union)
-            calc = rasters[0] != 0.0
-            for r in rasters[1:]:
-                calc = calc | (r != 0.0)
-        else:
-            calc = rasters[0] != 0.0
-        partial = RasterLayer.empty_raster_layer_like(rasters[0], datatype=DataType.UInt16)
-        calc.save(partial)
-
-        if merged_result is None:
-            merged_result = partial
-        else:
-            merged_result.reset_window()
-
-            union = RasterLayer.find_union([merged_result, partial])
-            partial.set_window_for_union(union)
-            merged_result.set_window_for_union(union)
-
-            merged_calc = partial + merged_result
-            temp = RasterLayer.empty_raster_layer_like(merged_result)
-            merged_calc.save(temp)
-            merged_result = temp
-
-    if merged_result is not None:
-        final = RasterLayer.empty_raster_layer_like(merged_result, filename=output_tif)
-        merged_result.save(final)
+    if merged_result:
+        merged_result.to_geotiff(output_tif) # type: ignore
 
 def stage_2_worker(
     filename: str,
@@ -63,32 +46,18 @@ def stage_2_worker(
 ) -> None:
     output_tif = result_dir / filename
 
-    merged_result = None
+    merged_result = 0
 
     while True:
         path = input_queue.get()
         if path is None:
             break
 
-        with RasterLayer.layer_from_file(path) as partial_raster:
-            if merged_result is None:
-                merged_result = RasterLayer.empty_raster_layer_like(partial_raster)
-                partial_raster.save(merged_result)
-            else:
-                merged_result.reset_window()
-
-                union = RasterLayer.find_union([merged_result, partial_raster])
-                merged_result.set_window_for_union(union)
-                partial_raster.set_window_for_union(union)
-
-                calc = merged_result + partial_raster
-                temp = RasterLayer.empty_raster_layer_like(merged_result)
-                calc.save(temp)
-                merged_result = temp
+        partial_raster = yg.read_raster(path)
+        merged_result = merged_result + partial_raster
 
     if merged_result:
-        final = RasterLayer.empty_raster_layer_like(merged_result, filename=output_tif, nodata=0)
-        merged_result.save(final)
+        merged_result.to_geotiff(output_tif, nodata=0) # type: ignore
 
 def species_richness(
     aohs_dir: Path,
@@ -100,7 +69,7 @@ def species_richness(
     aohs = list(Path(aohs_dir).rglob('*.tif'))
     print(f"We found {len(list(aohs))} AoH rasters")
 
-    species_rasters : Dict[str,Set[Path]] = {}
+    species_rasters : dict[str,set[Path]] = {}
     for raster_path in aohs:
         speciesid = raster_path.name.split('_')[0]
         species_rasters[speciesid] = species_rasters.get(speciesid, set()).union({raster_path})

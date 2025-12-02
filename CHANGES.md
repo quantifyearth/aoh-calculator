@@ -1,3 +1,9 @@
+## v1.1.1 (02/12/2025)
+
+### Changed
+
+* Update to newer Yirgacheffe APIs to simplify code.
+
 ## v1.1.0 (11/11/2025)
 
 ### Added
