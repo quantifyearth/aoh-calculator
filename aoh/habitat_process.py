@@ -95,8 +95,9 @@ def make_single_type_map(
                         dstSRS=target_projection,
                         outputType=gdal.GDT_Float32,
                         xRes=pixel_scale,
-                        yRes=((0.0 - pixel_scale) if pixel_scale else pixel_scale),
+                        yRes=((0.0 - pixel_scale) if pixel_scale is not None else pixel_scale),
                         resampleAlg="average",
+                        targetAlignedPixels=pixel_scale is not None,
                         warpOptions=[f'NUM_THREADS={max_threads}'],
                         warpMemoryLimit=available_mem,
                         workingType=gdal.GDT_Float32

@@ -3,6 +3,7 @@
 ### Changed
 
 * Update to newer Yirgacheffe APIs to simplify code.
+* Ensure reprojected habitat layers are pixel aligned for consistency.
 
 ## v1.1.0 (11/11/2025)
 
