@@ -74,12 +74,12 @@ def test_rescale_make_single_map() -> None:
     with tempfile.TemporaryDirectory() as tempdir:
         tmp = Path(tempdir)
         habitat_path = tmp / "habitat.tif"
-        generate_habitat_map(habitat_path, (20, 10), options)
+        generate_habitat_map(habitat_path, (40, 20), options)
         assert habitat_path.exists()
 
         make_single_type_map(
             habitat_path,
-            180.0 / 5.0, # Scale down by half
+            180.0 / 10.0, # Scale down by half
             None,
             tmp,
             1,
@@ -90,11 +90,13 @@ def test_rescale_make_single_map() -> None:
 
         with  yg.read_raster(habitat_path) as original:
             with yg.read_raster(expected_result_path) as result:
+                print(result.window)
+                print(result.area)
                 assert result.window.xsize == original.window.xsize / 2
                 assert result.window.ysize == original.window.ysize / 2
                 original_data = original.read_array(0, 0, original.window.xsize, original.window.ysize)
                 result_data = result.read_array(0, 0, result.window.xsize, result.window.ysize)
 
         binary_original_data = (original_data == 100).astype(int)
-        expected_data = binary_original_data.reshape(5, 2, 10, 2).mean(axis=(1, 3))
+        expected_data = binary_original_data.reshape(10, 2, 20, 2).mean(axis=(1, 3))
         assert (expected_data == result_data).all()
