@@ -61,7 +61,7 @@ def aohcalc(
 
     # We drop the geometry as that's a lot of data, more than the raster often
     species_info = filtered_species_info.drop('geometry', axis=1)
-    manifest = {k: v[0] for (k, v) in species_info.items()}
+    manifest = {k: v[0].item() if hasattr(v[0], 'item') else v[0] for (k, v) in species_info.items()}
 
     species_id = filtered_species_info.id_no.values[0]
     try:
