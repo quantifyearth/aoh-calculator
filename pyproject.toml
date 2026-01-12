@@ -32,7 +32,7 @@ dependencies = [
     "yirgacheffe>=1.11.1,<2.0",
     "zenodo_search",
     "pandas>=2.0,<3.0",
-    "gdal[numpy]>=3.8,<3.12",
+    "gdal[numpy]>=3.8,<3.13",
     "tomli",
 ]
 
@@ -83,3 +83,7 @@ packages = ["aoh", "aoh.summaries", "aoh.validation"]
 
 [tool.setuptools.package-data]
 aoh = ["py.typed"]
+
+[[tool.mypy.overrides]]
+module = "osgeo.*"
+ignore_missing_imports = true
