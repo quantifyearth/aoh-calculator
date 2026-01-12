@@ -3,6 +3,7 @@
 
 import argparse
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 
@@ -22,7 +23,7 @@ def generate_results_summary(aoh_df: pd.DataFrame, outliers: pd.DataFrame) -> st
     )
 
     # Count species by class
-    class_counts = aoh_df.groupby('class_name').size().to_dict()
+    class_counts = cast(dict[str,int], aoh_df.groupby('class_name').size().to_dict())
     outlier_counts = outliers.groupby('class_name').size().to_dict()
 
     for class_name in sorted(class_counts.keys()):
