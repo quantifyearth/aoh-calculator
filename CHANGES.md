@@ -1,3 +1,14 @@
+## v1.1.2 (12/01/2026)
+
+### Changed
+
+* Changed highest supported GDAL from 3.11.x to 3.12.x.
+* Clean up species info data when exporting it.
+
+### Fixed
+
+* Instruct mypy to ignore GDAL for typing.
+
 ## v1.1.1 (02/12/2025)
 
 ### Changed
