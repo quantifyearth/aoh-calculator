@@ -37,19 +37,144 @@ def crosswalk_habitats(crosswalk_table: dict[str, list[int]], raw_habitats: set[
         result |= set(crosswalked_habatit)
     return result
 
-def aohcalc(
+def load_species_data(species_data_path: Path, output_directory_path) -> Any:
+    os.environ["OGR_GEOJSON_MAX_OBJ_SIZE"] = "0"
+    filtered_species_info = gpd.read_file(species_data_path)
+    if filtered_species_info.shape[0] != 1:
+        raise ValueError("Expected just single species entry per GeoJSON file")
+
+    # We drop the geometry as that's a lot of data, more than the raster often, and make
+    # sure things are typed in regular Python types for later saving to JSON.
+    species_info = filtered_species_info.drop('geometry', axis=1)
+    manifest = {k: v[0].item() if hasattr(v[0], 'item') else v[0] for (k, v) in species_info.items()}
+
+    species_id = filtered_species_info.id_no.values[0]
+    try:
+        seasonality = filtered_species_info.season.values[0]
+        result_filename = output_directory_path / f"{species_id}_{seasonality}.tif"
+        manifest_filename = output_directory_path / f"{species_id}_{seasonality}.json"
+    except AttributeError:
+        seasonality = None
+        result_filename = output_directory_path / f"{species_id}.tif"
+        manifest_filename = output_directory_path / f"{species_id}.json"
+
+    try:
+        elevation_lower = math.floor(float(filtered_species_info.elevation_lower.values[0]))
+        elevation_upper = math.ceil(float(filtered_species_info.elevation_upper.values[0]))
+        raw_habitats = set(filtered_species_info.full_habitat_code.values[0].split('|'))
+    except (AttributeError, TypeError):
+        logger.error("Species data missing one or more needed attributes: %s", filtered_species_info)
+        manifest["error"] = "Species data missing one or more needed attributes"
+        with open(manifest_filename, 'w', encoding="utf-8") as f:
+            json.dump(manifest, f)
+        return
+
+    habitat_list = crosswalk_habitats(crosswalk_table, raw_habitats)
+    if force_habitat and len(habitat_list) == 0:
+        logger.error("No habitats found in crosswalk! %s_%s had %s", species_id, seasonality, raw_habitats)
+        manifest["error"] = "No habitats found in crosswalk"
+        with open(manifest_filename, 'w', encoding="utf-8") as f:
+            json.dump(manifest, f)
+        return
+
+def aohcalc_simple(
+    habitat_path: Path,
+    elevation_path: Path,
+    crosswalk_path: Path,
+    species_data_path: Path,
+    output_directory_path: Path,
+    weight_layer_paths: list[Path]=[],
+    force_habitat: bool=False,
+) -> None:
+    """An implementation of the AOH method from Brooks et al.
+
+    Note, all rasters must be in the same projection and pixel scale.
+
+    Arguments:
+        habitat_path: Path of the land cover or habitat map raster.
+        elevation_path: Path of the DEM raster.
+        crosswalk_path: Path to a CSV file which contains mapping of IUCN habitat class to values in the land cover or habitat map.
+        species_data_path: Path to a GeoJSON containing the data for a given species. See README.md for format.
+        output_directory_path: Directory into which the output GeoTIFF raster and summary JSON file will be written.
+        weight_layer_paths: An optional list of rasters that will be multiplied by the generated raster.
+        force_habitat: If true, do not revert to range if habitat layer contains no valid pixels.
+
+        Common uses:
+
+        - **Area correction**: Pass a raster of pixel areas in square meters
+          to convert from pixel counts to actual area (important for
+          geographic coordinate systems like WGS84)
+        - **Spatial masking**: Pass a binary raster to clip results to
+          land areas or other regions of interest
+
+    Examples
+    --------
+    # Area correction for WGS84
+    calculate_aoh(..., multipliers=pixel_area_raster)
+
+    # Mask to land and apply area correction
+    calculate_aoh(..., multipliers=[land_mask, pixel_area_raster])
+    """
+    crosswalk_table = load_crosswalk_table(crosswalk_path)
+
+    os.makedirs(output_directory_path, exist_ok=True)
+
+    os.environ["OGR_GEOJSON_MAX_OBJ_SIZE"] = "0"
+    try:
+        filtered_species_info = gpd.read_file(species_data_path)
+    except: # pylint:disable=W0702
+        logger.error("Failed to read %s", species_data_path)
+        sys.exit(1)
+    assert filtered_species_info.shape[0] == 1
+
+    # We drop the geometry as that's a lot of data, more than the raster often
+    species_info = filtered_species_info.drop('geometry', axis=1)
+    manifest = {k: v[0].item() if hasattr(v[0], 'item') else v[0] for (k, v) in species_info.items()}
+
+    species_id = filtered_species_info.id_no.values[0]
+    try:
+        seasonality = filtered_species_info.season.values[0]
+        result_filename = output_directory_path / f"{species_id}_{seasonality}.tif"
+        manifest_filename = output_directory_path / f"{species_id}_{seasonality}.json"
+    except AttributeError:
+        seasonality = None
+        result_filename = output_directory_path / f"{species_id}.tif"
+        manifest_filename = output_directory_path / f"{species_id}.json"
+
+    try:
+        elevation_lower = math.floor(float(filtered_species_info.elevation_lower.values[0]))
+        elevation_upper = math.ceil(float(filtered_species_info.elevation_upper.values[0]))
+        raw_habitats = set(filtered_species_info.full_habitat_code.values[0].split('|'))
+    except (AttributeError, TypeError):
+        logger.error("Species data missing one or more needed attributes: %s", filtered_species_info)
+        manifest["error"] = "Species data missing one or more needed attributes"
+        with open(manifest_filename, 'w', encoding="utf-8") as f:
+            json.dump(manifest, f)
+        return
+
+    habitat_list = crosswalk_habitats(crosswalk_table, raw_habitats)
+    if force_habitat and len(habitat_list) == 0:
+        logger.error("No habitats found in crosswalk! %s_%s had %s", species_id, seasonality, raw_habitats)
+        manifest["error"] = "No habitats found in crosswalk"
+        with open(manifest_filename, 'w', encoding="utf-8") as f:
+            json.dump(manifest, f)
+        return
+
+def aohcalc_iucn(
     habitat_path: Path,
     min_elevation_path: Path,
     max_elevation_path: Path,
     area_path: Path | None,
     crosswalk_path: Path,
     species_data_path: Path,
-    force_habitat: bool,
     output_directory_path: Path,
+    force_habitat: bool=False,
 ) -> None:
-    os.makedirs(output_directory_path, exist_ok=True)
+    """An implementation of the AOH used in the IUCN's STAR process."""
 
     crosswalk_table = load_crosswalk_table(crosswalk_path)
+
+    os.makedirs(output_directory_path, exist_ok=True)
 
     os.environ["OGR_GEOJSON_MAX_OBJ_SIZE"] = "0"
     try:
