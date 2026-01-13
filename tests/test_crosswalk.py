@@ -4,7 +4,7 @@ from typing import Set
 
 import pytest
 
-from aoh.aohcalc import load_crosswalk_table, crosswalk_habitats
+from aoh._internal.speciesinfo import load_crosswalk_table, crosswalk_habitats
 
 EXAMPLE_CROSSWALK = """code,value
 1,100
