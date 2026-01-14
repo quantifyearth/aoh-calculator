@@ -2,6 +2,12 @@
 
 This repository contains code for making Area of Habitat (AOH) rasters from a mix of data sources, following the methodology described in [Brooks et al](https://www.cell.com/trends/ecology-evolution/fulltext/S0169-5347(19)30189-2) and adhering to the IUCN Redlist Technical Working Group guidance on AoH production. This work is part of the [LIFE biodiversity map](https://www.cambridge.org/engage/coe/article-details/660e6f08418a5379b00a82b2) work at the University of Cambridge. It also contains some scripts for summarising AOH data into maps of species richness and species endemism.
 
+## Overview
+
+An AOH raster combines data on species range, habitat preferences and elevation preferences along with raster produces such as a Digital Elevation Map (DEM) and a land cover or habitat map and uses this information to generate a raster that regines the species range down to just those areas that match its preferences: its area of habitat.
+
+The AOH library provides two implementations of the AOH method: a binary method and a fractional method. The binary method takes a single land cover or habitat map where each pixel is encoded to a particular land cover or habitat class (e.g., the [Copernicus Land Cover map]((https://land.copernicus.eu/en/products/global-dynamic-land-cover)) or the [Jung habitat map](https://zenodo.org/records/4058819)). The fractional method takes in a set of rasters, one per class, with each pixel being some proportional value. In this approach if a species has multiple habitat preferences and their maps overlap the resulting value in the AOH map will be a summation of those values.
+
 ## Installation
 
 The AOH Calculator is available as a Python package and can be installed via pip:

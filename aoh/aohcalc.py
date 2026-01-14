@@ -2,7 +2,7 @@ import argparse
 import logging
 from pathlib import Path
 
-from . import aohcalc_iucn
+from . import aohcalc_fractional
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(message)s')
@@ -66,7 +66,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    aohcalc_iucn(
+    aohcalc_fractional(
         args.habitat_path,
         args.min_elevation_path,
         args.max_elevation_path,

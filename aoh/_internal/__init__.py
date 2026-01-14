@@ -1,2 +1,2 @@
-from .aoh_iucn import aohcalc_iucn
-from .aoh_simple import aohcalc_simple
+from .aoh_fractional import aohcalc_fractional
+from .aoh_binary import aohcalc_binary

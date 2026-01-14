@@ -1,6 +1,5 @@
 import json
 import math
-import os
 import tempfile
 from pathlib import Path
 
@@ -11,30 +10,30 @@ import pytest
 import yirgacheffe as yg
 from osgeo import gdal # type: ignore
 
-from aoh import aohcalc_iucn
+from aoh import aohcalc_binary
 
-def generate_habitat_maps(
-    output_dir: Path,
+def generate_habitat_map(
+    output_path: Path,
     dimensions: tuple[int,int],
     options: set[int],
 ) -> None:
     width, height = dimensions
-    for option in options:
-        output_path = output_dir / f"lcc_{option}.tif"
-        data = np.full((height, width), 1.0 / len(options))
-        dataset = gdal.GetDriverByName("GTiff").Create(
-            output_path,
-            width,
-            height,
-            1,
-            gdal.GDT_Float64,
-            [],
-        )
-        dataset.SetGeoTransform((-180.0, 360/width, 0.0, 90, 0.0, -180/height))
-        dataset.SetProjection("WGS84")
-        band = dataset.GetRasterBand(1)
-        band.WriteArray(data, 0, 0)
-        dataset.Close()
+    options_list = list(options)
+    data = np.array(options_list * ((width * height) // len(options_list) + 1))[:width * height]
+    data = data.reshape(height, width)
+    dataset = gdal.GetDriverByName("GTiff").Create(
+        output_path,
+        width,
+        height,
+        1,
+        gdal.GDT_Float64,
+        [],
+    )
+    dataset.SetGeoTransform((-180.0, 360/width, 0.0, 90, 0.0, -180/height))
+    dataset.SetProjection("WGS84")
+    band = dataset.GetRasterBand(1)
+    band.WriteArray(data, 0, 0)
+    dataset.Close()
 
 def generate_flat_elevation_map(
     output_path: Path,
@@ -120,18 +119,15 @@ def test_simple_aoh(force_habitat) -> None:
     with tempfile.TemporaryDirectory() as tempdir:
         tmp = Path(tempdir)
 
-        habitats_path = tmp / "habitats"
-        os.makedirs(habitats_path, exist_ok=True)
-        generate_habitat_maps(
+        habitats_path = tmp / "habitat.tif"
+        generate_habitat_map(
             habitats_path,
             dims,
             {100, 200},
         )
 
-        min_elevation_path = tmp / "elevation_min.tif"
-        generate_flat_elevation_map(min_elevation_path, dims, -200)
-        max_elevation_path = tmp / "elevation_max.tif"
-        generate_flat_elevation_map(max_elevation_path, dims, 1000)
+        elevation_path = tmp / "elevation.tif"
+        generate_flat_elevation_map(elevation_path, dims, 150)
 
         crosswalk = {
             "1.0": {100, 101, 102},
@@ -147,15 +143,13 @@ def test_simple_aoh(force_habitat) -> None:
         generate_species_info(species_data_path, (100, 200), {"1.1"})
 
         output_dir = tmp / "results"
-        aohcalc_iucn(
+        aohcalc_binary(
             habitats_path,
-            min_elevation_path,
-            max_elevation_path,
-            None,
+            elevation_path,
             crosswalk_path,
             species_data_path,
             output_dir,
-            force_habitat,
+            force_habitat=force_habitat,
         )
 
         expected_geotiff_path = output_dir / "1234_1.tif"
@@ -185,7 +179,10 @@ def test_simple_aoh(force_habitat) -> None:
             assert result.window.xsize == dims[0] / 2
             assert result.window.ysize == dims[1] / 2
             data = result.read_array(0, 0, result.window.xsize, result.window.ysize)
-        expected = np.full((result.window.ysize, result.window.xsize), 0.5)
+        expected = np.array(
+            [0, 1] * ((result.window.xsize * result.window.ysize) // 2)
+        )[:result.window.xsize * result.window.ysize]
+        expected = expected.reshape(result.window.ysize, result.window.xsize)
         assert (data == expected).all()
 
 @pytest.mark.parametrize("force_habitat", [True, False])
@@ -193,18 +190,15 @@ def test_no_habitat_aoh(force_habitat) -> None:
     with tempfile.TemporaryDirectory() as tempdir:
         tmp = Path(tempdir)
 
-        habitats_path = tmp / "habitats"
-        os.makedirs(habitats_path, exist_ok=True)
-        generate_habitat_maps(
+        habitats_path = tmp / "habitats.tif"
+        generate_habitat_map(
             habitats_path,
             (20, 10),
             {200},
         )
 
-        min_elevation_path = tmp / "elevation_min.tif"
-        generate_flat_elevation_map(min_elevation_path, (20, 10), -200)
-        max_elevation_path = tmp / "elevation_max.tif"
-        generate_flat_elevation_map(max_elevation_path, (20, 10), 1000)
+        elevation_path = tmp / "elevation.tif"
+        generate_flat_elevation_map(elevation_path, (20, 10), 150)
 
         crosswalk = {
             "1.0": {100, 101, 102},
@@ -220,15 +214,13 @@ def test_no_habitat_aoh(force_habitat) -> None:
         generate_species_info(species_data_path, (100, 200), {"1.1"})
 
         output_dir = tmp / "results"
-        aohcalc_iucn(
+        aohcalc_binary(
             habitats_path,
-            min_elevation_path,
-            max_elevation_path,
-            None,
+            elevation_path,
             crosswalk_path,
             species_data_path,
             output_dir,
-            force_habitat,
+            force_habitat=force_habitat,
         )
 
         expected_geotiff_path = output_dir / "1234_1.tif"
@@ -247,7 +239,7 @@ def test_no_habitat_aoh(force_habitat) -> None:
         assert manifest["full_habitat_code"] == "1.1"
 
         if force_habitat:
-            assert manifest["error"] == "No matching habitat layers found"
+            assert manifest["error"] == "No habitat found and --force-habitat specified"
         else:
             # The default IUCN behaviour is to revert to range if no habitat
             assert manifest["range_total"] == 60
@@ -262,18 +254,15 @@ def test_simple_aoh_area(force_habitat) -> None:
     with tempfile.TemporaryDirectory() as tempdir:
         tmp = Path(tempdir)
 
-        habitats_path = tmp / "habitats"
-        os.makedirs(habitats_path, exist_ok=True)
-        generate_habitat_maps(
+        habitats_path = tmp / "habitats.tif"
+        generate_habitat_map(
             habitats_path,
             dims,
             {100, 200},
         )
 
-        min_elevation_path = tmp / "elevation_min.tif"
-        generate_flat_elevation_map(min_elevation_path, dims, -200)
-        max_elevation_path = tmp / "elevation_max.tif"
-        generate_flat_elevation_map(max_elevation_path, dims, 1000)
+        elevation_path = tmp / "elevation.tif"
+        generate_flat_elevation_map(elevation_path, dims, 150)
 
         crosswalk = {
             "1.0": {100, 101, 102},
@@ -293,15 +282,14 @@ def test_simple_aoh_area(force_habitat) -> None:
         generate_area_map(area_path, dims, pixel_area)
 
         output_dir = tmp / "results"
-        aohcalc_iucn(
+        aohcalc_binary(
             habitats_path,
-            min_elevation_path,
-            max_elevation_path,
-            area_path,
+            elevation_path,
             crosswalk_path,
             species_data_path,
             output_dir,
-            force_habitat,
+            force_habitat=force_habitat,
+            weight_layer_paths=[area_path],
         )
 
         expected_geotiff_path = output_dir / "1234_1.tif"
@@ -332,7 +320,11 @@ def test_simple_aoh_area(force_habitat) -> None:
             assert result.window.xsize == dims[0] / 2
             assert result.window.ysize == dims[1] / 2
             data = result.read_array(0, 0, result.window.xsize, result.window.ysize)
-        expected = np.full((result.window.ysize, result.window.xsize), 0.5 * pixel_area)
+        expected = np.array(
+            [0, 4200000.0] * \
+            ((result.window.xsize * result.window.ysize) // 2)
+        )[:result.window.xsize * result.window.ysize]
+        expected = expected.reshape(result.window.ysize, result.window.xsize)
         assert (data == expected).all()
 
 @pytest.mark.parametrize("force_habitat", [True, False])
@@ -340,18 +332,15 @@ def test_simple_aoh_multiple_habitats(force_habitat) -> None:
     with tempfile.TemporaryDirectory() as tempdir:
         tmp = Path(tempdir)
 
-        habitats_path = tmp / "habitats"
-        os.makedirs(habitats_path, exist_ok=True)
-        generate_habitat_maps(
+        habitats_path = tmp / "habitat.tif"
+        generate_habitat_map(
             habitats_path,
             (20, 10),
-            {100, 200, 300},
+            {100, 200, 300, 400},
         )
 
-        min_elevation_path = tmp / "elevation_min.tif"
-        generate_flat_elevation_map(min_elevation_path, (20, 10), -200)
-        max_elevation_path = tmp / "elevation_max.tif"
-        generate_flat_elevation_map(max_elevation_path, (20, 10), 1000)
+        elevation_path = tmp / "elevation.tif"
+        generate_flat_elevation_map(elevation_path, (20, 10), 150)
 
         crosswalk = {
             "1.0": {100, 101, 102},
@@ -368,15 +357,13 @@ def test_simple_aoh_multiple_habitats(force_habitat) -> None:
         generate_species_info(species_data_path, (100, 200), {"1.1", "2.0"})
 
         output_dir = tmp / "results"
-        aohcalc_iucn(
+        aohcalc_binary(
             habitats_path,
-            min_elevation_path,
-            max_elevation_path,
-            None,
+            elevation_path,
             crosswalk_path,
             species_data_path,
             output_dir,
-            force_habitat,
+            force_habitat=force_habitat,
         )
 
         expected_geotiff_path = output_dir / "1234_1.tif"
@@ -398,15 +385,18 @@ def test_simple_aoh_multiple_habitats(force_habitat) -> None:
         # test are 50%
         assert manifest["range_total"] == 60
         assert manifest["dem_total"] == 60
-        assert math.isclose(manifest["hab_total"], 40)
-        assert math.isclose(manifest["aoh_total"], 40)
-        assert math.isclose(manifest["prevalence"], 2/3)
+        print(manifest)
+        assert math.isclose(manifest["hab_total"], 30)
+        assert math.isclose(manifest["aoh_total"], 30)
+        assert math.isclose(manifest["prevalence"], 1/2)
 
         with yg.read_raster(expected_geotiff_path) as result:
             assert result.window.xsize == 10
             assert result.window.ysize == 6
             data = result.read_array(0, 0, 10, 6)
-        expected = np.full((6, 10), 2/3)
+
+        expected = np.array([1, 0, 0, 1, 1, 0, 0, 1, 1, 0] * 6)
+        expected = expected.reshape(result.window.ysize, result.window.xsize)
         assert np.isclose(data, expected).all()
 
 
@@ -415,18 +405,15 @@ def test_no_overlapping_habitats(force_habitat) -> None:
     with tempfile.TemporaryDirectory() as tempdir:
         tmp = Path(tempdir)
 
-        habitats_path = tmp / "habitats"
-        os.makedirs(habitats_path, exist_ok=True)
-        generate_habitat_maps(
+        habitats_path = tmp / "habitats.tif"
+        generate_habitat_map(
             habitats_path,
             (20, 10),
             {100, 200, 300},
         )
 
-        min_elevation_path = tmp / "elevation_min.tif"
-        generate_flat_elevation_map(min_elevation_path, (20, 10), -200)
-        max_elevation_path = tmp / "elevation_max.tif"
-        generate_flat_elevation_map(max_elevation_path, (20, 10), 1000)
+        elevation_path = tmp / "elevation.tif"
+        generate_flat_elevation_map(elevation_path, (20, 10), 150)
 
         crosswalk = {
             "1.0": {100, 101, 102},
@@ -443,15 +430,13 @@ def test_no_overlapping_habitats(force_habitat) -> None:
         generate_species_info(species_data_path, (100, 200), {"42.0"})
 
         output_dir = tmp / "results"
-        aohcalc_iucn(
+        aohcalc_binary(
             habitats_path,
-            min_elevation_path,
-            max_elevation_path,
-            None,
+            elevation_path,
             crosswalk_path,
             species_data_path,
             output_dir,
-            force_habitat,
+            force_habitat=force_habitat,
         )
 
         expected_geotiff_path = output_dir / "1234_1.tif"
@@ -484,18 +469,15 @@ def test_no_elevation_aoh(force_habitat) -> None:
     with tempfile.TemporaryDirectory() as tempdir:
         tmp = Path(tempdir)
 
-        habitats_path = tmp / "habitats"
-        os.makedirs(habitats_path, exist_ok=True)
-        generate_habitat_maps(
+        habitats_path = tmp / "habitats.tif"
+        generate_habitat_map(
             habitats_path,
             (20, 10),
-            {100, 200},
+            {100, 200, 300},
         )
 
-        min_elevation_path = tmp / "elevation_min.tif"
-        generate_flat_elevation_map(min_elevation_path, (20, 10), -200)
-        max_elevation_path = tmp / "elevation_max.tif"
-        generate_flat_elevation_map(max_elevation_path, (20, 10), 1000)
+        elevation_path = tmp / "elevation.tif"
+        generate_flat_elevation_map(elevation_path, (20, 10), 150)
 
         crosswalk = {
             "1.0": {100, 101, 102},
@@ -511,15 +493,13 @@ def test_no_elevation_aoh(force_habitat) -> None:
         generate_species_info(species_data_path, (2100, 2200), {"1.1"})
 
         output_dir = tmp / "results"
-        aohcalc_iucn(
+        aohcalc_binary(
             habitats_path,
-            min_elevation_path,
-            max_elevation_path,
-            None,
+            elevation_path,
             crosswalk_path,
             species_data_path,
             output_dir,
-            force_habitat,
+            force_habitat=force_habitat,
         )
 
         expected_geotiff_path = output_dir / "1234_1.tif"
@@ -538,8 +518,9 @@ def test_no_elevation_aoh(force_habitat) -> None:
         assert manifest["full_habitat_code"] == "1.1"
 
         # The default IUCN behaviour is to revert to range if no elevation
+        print(manifest)
         assert manifest["range_total"] == 60
         assert manifest["dem_total"] == 0
-        assert manifest["hab_total"] == 30
-        assert manifest["aoh_total"] == 30
-        assert manifest["prevalence"] == 0.5
+        assert manifest["hab_total"] == 20
+        assert manifest["aoh_total"] == 20
+        assert manifest["prevalence"] == 1 / 3
