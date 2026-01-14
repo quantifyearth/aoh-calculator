@@ -149,8 +149,7 @@ def test_simple_aoh(force_habitat) -> None:
         output_dir = tmp / "results"
         aohcalc_fractional(
             habitats_path,
-            min_elevation_path,
-            max_elevation_path,
+            (min_elevation_path, max_elevation_path),
             None,
             crosswalk_path,
             species_data_path,
@@ -222,8 +221,7 @@ def test_no_habitat_aoh(force_habitat) -> None:
         output_dir = tmp / "results"
         aohcalc_fractional(
             habitats_path,
-            min_elevation_path,
-            max_elevation_path,
+            (min_elevation_path, max_elevation_path),
             None,
             crosswalk_path,
             species_data_path,
@@ -295,8 +293,7 @@ def test_simple_aoh_area(force_habitat) -> None:
         output_dir = tmp / "results"
         aohcalc_fractional(
             habitats_path,
-            min_elevation_path,
-            max_elevation_path,
+            (min_elevation_path, max_elevation_path),
             area_path,
             crosswalk_path,
             species_data_path,
@@ -370,8 +367,7 @@ def test_simple_aoh_multiple_habitats(force_habitat) -> None:
         output_dir = tmp / "results"
         aohcalc_fractional(
             habitats_path,
-            min_elevation_path,
-            max_elevation_path,
+            (min_elevation_path, max_elevation_path),
             None,
             crosswalk_path,
             species_data_path,
@@ -445,8 +441,7 @@ def test_no_overlapping_habitats(force_habitat) -> None:
         output_dir = tmp / "results"
         aohcalc_fractional(
             habitats_path,
-            min_elevation_path,
-            max_elevation_path,
+            (min_elevation_path, max_elevation_path),
             None,
             crosswalk_path,
             species_data_path,
@@ -513,8 +508,7 @@ def test_no_elevation_aoh(force_habitat) -> None:
         output_dir = tmp / "results"
         aohcalc_fractional(
             habitats_path,
-            min_elevation_path,
-            max_elevation_path,
+            (min_elevation_path, max_elevation_path),
             None,
             crosswalk_path,
             species_data_path,

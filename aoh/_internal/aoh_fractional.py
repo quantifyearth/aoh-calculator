@@ -13,8 +13,7 @@ yg.constants.YSTEP = 2048
 
 def aohcalc_fractional(
     habitat_path: Path,
-    min_elevation_path: Path,
-    max_elevation_path: Path,
+    elevation_path: Path | tuple[Path,Path],
     area_path: Path | None,
     crosswalk_path: Path,
     species_data_path: Path,
@@ -52,8 +51,17 @@ def aohcalc_fractional(
 
     habitat_maps = [yg.read_raster(x) for x in habitat_map_files]
 
-    min_elevation_map = yg.read_raster(min_elevation_path)
-    max_elevation_map = yg.read_raster(max_elevation_path)
+    if isinstance(elevation_path, Path):
+        min_elevation_map = yg.read_raster(elevation_path)
+        max_elevation_map = min_elevation_map
+    elif isinstance(elevation_path, tuple):
+        if len(elevation_path) != 2:
+            raise ValueError("elevation path should be single raster or tuple of min/max raster paths.")
+        min_elevation_map = yg.read_raster(elevation_path[0])
+        max_elevation_map = yg.read_raster(elevation_path[1])
+    else:
+        raise ValueError("Elevation path should be single raster or tuple of min/max raster paths.")
+
     range_map = yg.read_shape_like(
         species_data_path,
         min_elevation_map,

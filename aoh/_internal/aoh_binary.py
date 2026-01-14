@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def aohcalc_binary(
     habitat_path: Path,
-    elevation_path: Path,
+    elevation_path: Path | tuple[Path,Path],
     crosswalk_path: Path,
     species_data_path: Path,
     output_directory_path: Path,
@@ -26,7 +26,8 @@ def aohcalc_binary(
 
     Arguments:
         habitat_path: Path of the land cover or habitat map raster.
-        elevation_path: Path of the DEM raster.
+        elevation_path: Path to DEM raster, or tuple of (min_dem_path, max_dem_path)
+        for downscaled analyses following IUCN recommendations.
         crosswalk_path: Path to a CSV file which contains mapping of IUCN habitat class to values in the
             land cover or habitat map.
         species_data_path: Path to a GeoJSON containing the data for a given species. See README.md for format.
@@ -72,10 +73,21 @@ def aohcalc_binary(
 
 
     habitat_map = yg.read_raster(habitat_path)
-    elevation_map = yg.read_raster(elevation_path)
+
+    if isinstance(elevation_path, Path):
+        min_elevation_map = yg.read_raster(elevation_path)
+        max_elevation_map = min_elevation_map
+    elif isinstance(elevation_path, tuple):
+        if len(elevation_path) != 2:
+            raise ValueError("Elevation path should be single raster or tuple of min/max raster paths.")
+        min_elevation_map = yg.read_raster(elevation_path[0])
+        max_elevation_map = yg.read_raster(elevation_path[1])
+    else:
+        raise ValueError("Elevation path should be single raster or tuple of min/max raster paths.")
+
     range_map = yg.read_shape_like(
         species_data_path,
-        elevation_map,
+        min_elevation_map,
         datatype=yg.DataType.Float32,
     )
 
@@ -126,7 +138,7 @@ def aohcalc_binary(
     # in cleaning.py, where any bad values for elevation cause us assume the entire range is valid.
     hab_only_total = (filtered_by_habtitat * weights_map).sum()
 
-    filtered_elevation = (elevation_map <= elevation_upper) & (elevation_map >= elevation_lower)
+    filtered_elevation = (min_elevation_map <= elevation_upper) & (max_elevation_map >= elevation_lower)
 
     dem_only_total = (filtered_elevation * range_map * weights_map).sum()
 

@@ -68,8 +68,7 @@ def main() -> None:
 
     aohcalc_fractional(
         args.habitat_path,
-        args.min_elevation_path,
-        args.max_elevation_path,
+        (args.min_elevation_path, args.max_elevation_path),
         args.area_path,
         args.crosswalk_path,
         args.species_data_path,
