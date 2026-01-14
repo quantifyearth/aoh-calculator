@@ -1,6 +1,5 @@
 import json
 import math
-import os
 import tempfile
 from pathlib import Path
 
@@ -180,7 +179,9 @@ def test_simple_aoh(force_habitat) -> None:
             assert result.window.xsize == dims[0] / 2
             assert result.window.ysize == dims[1] / 2
             data = result.read_array(0, 0, result.window.xsize, result.window.ysize)
-        expected = np.array([0, 1] * ((result.window.xsize * result.window.ysize) // 2))[:result.window.xsize * result.window.ysize]
+        expected = np.array(
+            [0, 1] * ((result.window.xsize * result.window.ysize) // 2)
+        )[:result.window.xsize * result.window.ysize]
         expected = expected.reshape(result.window.ysize, result.window.xsize)
         assert (data == expected).all()
 
@@ -319,7 +320,10 @@ def test_simple_aoh_area(force_habitat) -> None:
             assert result.window.xsize == dims[0] / 2
             assert result.window.ysize == dims[1] / 2
             data = result.read_array(0, 0, result.window.xsize, result.window.ysize)
-        expected = np.array([0, 4200000.0] * ((result.window.xsize * result.window.ysize) // 2))[:result.window.xsize * result.window.ysize]
+        expected = np.array(
+            [0, 4200000.0] * \
+            ((result.window.xsize * result.window.ysize) // 2)
+        )[:result.window.xsize * result.window.ysize]
         expected = expected.reshape(result.window.ysize, result.window.xsize)
         assert (data == expected).all()
 
@@ -332,7 +336,7 @@ def test_simple_aoh_multiple_habitats(force_habitat) -> None:
         generate_habitat_map(
             habitats_path,
             (20, 10),
-            {100, 200, 300},
+            {100, 200, 300, 400},
         )
 
         elevation_path = tmp / "elevation.tif"
@@ -381,152 +385,141 @@ def test_simple_aoh_multiple_habitats(force_habitat) -> None:
         # test are 50%
         assert manifest["range_total"] == 60
         assert manifest["dem_total"] == 60
-        assert math.isclose(manifest["hab_total"], 40)
-        assert math.isclose(manifest["aoh_total"], 40)
-        assert math.isclose(manifest["prevalence"], 2/3)
+        assert math.isclose(manifest["hab_total"], 30)
+        assert math.isclose(manifest["aoh_total"], 30)
+        assert math.isclose(manifest["prevalence"], 1/2)
 
         with yg.read_raster(expected_geotiff_path) as result:
             assert result.window.xsize == 10
             assert result.window.ysize == 6
             data = result.read_array(0, 0, 10, 6)
 
-        print(data)
-        expected = np.array([1, 1, 0] * ((result.window.xsize * result.window.ysize) // 3))[:result.window.xsize * result.window.ysize]
+        expected = np.array([1, 0, 0, 1, 1, 0, 0, 1, 1, 0] * 6)
         expected = expected.reshape(result.window.ysize, result.window.xsize)
-        print(expected)
         assert np.isclose(data, expected).all()
 
 
-# @pytest.mark.parametrize("force_habitat", [True, False])
-# def test_no_overlapping_habitats(force_habitat) -> None:
-    # with tempfile.TemporaryDirectory() as tempdir:
-    #     tmp = Path(tempdir)
-#
-    #     habitats_path = tmp / "habitats"
-    #     os.makedirs(habitats_path, exist_ok=True)
-    #     generate_habitat_maps(
-    #         habitats_path,
-    #         (20, 10),
-    #         {100, 200, 300},
-    #     )
-#
-    #     min_elevation_path = tmp / "elevation_min.tif"
-    #     generate_flat_elevation_map(min_elevation_path, (20, 10), -200)
-    #     max_elevation_path = tmp / "elevation_max.tif"
-    #     generate_flat_elevation_map(max_elevation_path, (20, 10), 1000)
-#
-    #     crosswalk = {
-    #         "1.0": {100, 101, 102},
-    #         "1.1": {100, 101},
-    #         "1.2": {100, 102},
-    #         "2.0": {200, 201},
-    #         "2.1": {200, 201},
-    #         "3,0": {300},
-    #     }
-    #     crosswalk_path = tmp / "crosswalk.csv"
-    #     generate_crosswalk(crosswalk_path, crosswalk)
-#
-    #     species_data_path = tmp / "species.geojson"
-    #     generate_species_info(species_data_path, (100, 200), {"42.0"})
-#
-    #     output_dir = tmp / "results"
-    #     aohcalc_iucn(
-    #         habitats_path,
-    #         min_elevation_path,
-    #         max_elevation_path,
-    #         None,
-    #         crosswalk_path,
-    #         species_data_path,
-    #         output_dir,
-    #         force_habitat,
-    #     )
-#
-    #     expected_geotiff_path = output_dir / "1234_1.tif"
-    #     assert expected_geotiff_path.exists() == (not force_habitat)
-    #     expected_manifest_path = output_dir / "1234_1.json"
-    #     assert expected_manifest_path.exists()
-#
-    #     with open(expected_manifest_path, "r", encoding="UTF-8") as f:
-    #         manifest = json.load(f)
-#
-    #     # Check basic facts
-    #     assert manifest["id_no"] == "1234"
-    #     assert manifest["season"] == "1"
-    #     assert manifest["elevation_lower"] == 100
-    #     assert manifest["elevation_upper"] == 200
-    #     assert manifest["full_habitat_code"] == "42.0"
-#
-    #     if force_habitat:
-    #         assert manifest["error"] =="No habitats found in crosswalk"
-    #     else:
-    #         # The default IUCN behaviour is to revert to range if no habitat
-    #         assert manifest["range_total"] == 60
-    #         assert manifest["dem_total"] == 60
-    #         assert manifest["hab_total"] == 60
-    #         assert manifest["aoh_total"] == 60
-    #         assert manifest["prevalence"] == 1
-#
-# @pytest.mark.parametrize("force_habitat", [True, False])
-# def test_no_elevation_aoh(force_habitat) -> None:
-    # with tempfile.TemporaryDirectory() as tempdir:
-    #     tmp = Path(tempdir)
-#
-    #     habitats_path = tmp / "habitats"
-    #     os.makedirs(habitats_path, exist_ok=True)
-    #     generate_habitat_maps(
-    #         habitats_path,
-    #         (20, 10),
-    #         {100, 200},
-    #     )
-#
-    #     min_elevation_path = tmp / "elevation_min.tif"
-    #     generate_flat_elevation_map(min_elevation_path, (20, 10), -200)
-    #     max_elevation_path = tmp / "elevation_max.tif"
-    #     generate_flat_elevation_map(max_elevation_path, (20, 10), 1000)
-#
-    #     crosswalk = {
-    #         "1.0": {100, 101, 102},
-    #         "1.1": {100, 101},
-    #         "1.2": {100, 102},
-    #         "2.0": {200, 201},
-    #         "2.1": {200, 201},
-    #     }
-    #     crosswalk_path = tmp / "crosswalk.csv"
-    #     generate_crosswalk(crosswalk_path, crosswalk)
-#
-    #     species_data_path = tmp / "species.geojson"
-    #     generate_species_info(species_data_path, (2100, 2200), {"1.1"})
-#
-    #     output_dir = tmp / "results"
-    #     aohcalc_iucn(
-    #         habitats_path,
-    #         min_elevation_path,
-    #         max_elevation_path,
-    #         None,
-    #         crosswalk_path,
-    #         species_data_path,
-    #         output_dir,
-    #         force_habitat,
-    #     )
-#
-    #     expected_geotiff_path = output_dir / "1234_1.tif"
-    #     assert expected_geotiff_path.exists()
-    #     expected_manifest_path = output_dir / "1234_1.json"
-    #     assert expected_manifest_path.exists()
-#
-    #     with open(expected_manifest_path, "r", encoding="UTF-8") as f:
-    #         manifest = json.load(f)
-#
-    #     # Check basic facts
-    #     assert manifest["id_no"] == "1234"
-    #     assert manifest["season"] == "1"
-    #     assert manifest["elevation_lower"] == 2100
-    #     assert manifest["elevation_upper"] == 2200
-    #     assert manifest["full_habitat_code"] == "1.1"
-#
-    #     # The default IUCN behaviour is to revert to range if no elevation
-    #     assert manifest["range_total"] == 60
-    #     assert manifest["dem_total"] == 0
-    #     assert manifest["hab_total"] == 30
-    #     assert manifest["aoh_total"] == 30
-    #     assert manifest["prevalence"] == 0.5
+@pytest.mark.parametrize("force_habitat", [True, False])
+def test_no_overlapping_habitats(force_habitat) -> None:
+    with tempfile.TemporaryDirectory() as tempdir:
+        tmp = Path(tempdir)
+
+        habitats_path = tmp / "habitats.tif"
+        generate_habitat_map(
+            habitats_path,
+            (20, 10),
+            {100, 200, 300},
+        )
+
+        elevation_path = tmp / "elevation.tif"
+        generate_flat_elevation_map(elevation_path, (20, 10), 150)
+
+        crosswalk = {
+            "1.0": {100, 101, 102},
+            "1.1": {100, 101},
+            "1.2": {100, 102},
+            "2.0": {200, 201},
+            "2.1": {200, 201},
+            "3,0": {300},
+        }
+        crosswalk_path = tmp / "crosswalk.csv"
+        generate_crosswalk(crosswalk_path, crosswalk)
+
+        species_data_path = tmp / "species.geojson"
+        generate_species_info(species_data_path, (100, 200), {"42.0"})
+
+        output_dir = tmp / "results"
+        aohcalc_simple(
+            habitats_path,
+            elevation_path,
+            crosswalk_path,
+            species_data_path,
+            output_dir,
+            force_habitat=force_habitat,
+        )
+
+        expected_geotiff_path = output_dir / "1234_1.tif"
+        assert expected_geotiff_path.exists() == (not force_habitat)
+        expected_manifest_path = output_dir / "1234_1.json"
+        assert expected_manifest_path.exists()
+
+        with open(expected_manifest_path, "r", encoding="UTF-8") as f:
+            manifest = json.load(f)
+
+        # Check basic facts
+        assert manifest["id_no"] == "1234"
+        assert manifest["season"] == "1"
+        assert manifest["elevation_lower"] == 100
+        assert manifest["elevation_upper"] == 200
+        assert manifest["full_habitat_code"] == "42.0"
+
+        if force_habitat:
+            assert manifest["error"] =="No habitats found in crosswalk"
+        else:
+            # The default IUCN behaviour is to revert to range if no habitat
+            assert manifest["range_total"] == 60
+            assert manifest["dem_total"] == 60
+            assert manifest["hab_total"] == 60
+            assert manifest["aoh_total"] == 60
+            assert manifest["prevalence"] == 1
+
+@pytest.mark.parametrize("force_habitat", [True, False])
+def test_no_elevation_aoh(force_habitat) -> None:
+    with tempfile.TemporaryDirectory() as tempdir:
+        tmp = Path(tempdir)
+
+        habitats_path = tmp / "habitats.tif"
+        generate_habitat_map(
+            habitats_path,
+            (20, 10),
+            {100, 200, 300},
+        )
+
+        elevation_path = tmp / "elevation.tif"
+        generate_flat_elevation_map(elevation_path, (20, 10), 150)
+
+        crosswalk = {
+            "1.0": {100, 101, 102},
+            "1.1": {100, 101},
+            "1.2": {100, 102},
+            "2.0": {200, 201},
+            "2.1": {200, 201},
+        }
+        crosswalk_path = tmp / "crosswalk.csv"
+        generate_crosswalk(crosswalk_path, crosswalk)
+
+        species_data_path = tmp / "species.geojson"
+        generate_species_info(species_data_path, (2100, 2200), {"1.1"})
+
+        output_dir = tmp / "results"
+        aohcalc_simple(
+            habitats_path,
+            elevation_path,
+            crosswalk_path,
+            species_data_path,
+            output_dir,
+            force_habitat=force_habitat,
+        )
+
+        expected_geotiff_path = output_dir / "1234_1.tif"
+        assert expected_geotiff_path.exists()
+        expected_manifest_path = output_dir / "1234_1.json"
+        assert expected_manifest_path.exists()
+
+        with open(expected_manifest_path, "r", encoding="UTF-8") as f:
+            manifest = json.load(f)
+
+        # Check basic facts
+        assert manifest["id_no"] == "1234"
+        assert manifest["season"] == "1"
+        assert manifest["elevation_lower"] == 2100
+        assert manifest["elevation_upper"] == 2200
+        assert manifest["full_habitat_code"] == "1.1"
+
+        # The default IUCN behaviour is to revert to range if no elevation
+        print(manifest)
+        assert manifest["range_total"] == 60
+        assert manifest["dem_total"] == 0
+        assert manifest["hab_total"] == 20
+        assert manifest["aoh_total"] == 20
+        assert manifest["prevalence"] == 1 / 3

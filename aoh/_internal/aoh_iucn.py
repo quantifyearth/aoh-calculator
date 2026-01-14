@@ -37,7 +37,8 @@ def aohcalc_iucn(
 
     habitat_list = species_info.habitat_list
     if force_habitat and len(habitat_list) == 0:
-        logger.error("No habitats found in crosswalk! %s_%s had %s", species_info.species_id, species_info.season, species_info.raw_habitats)
+        logger.error("No habitats found in crosswalk! %s_%s had %s",
+            species_info.species_id, species_info.season, species_info.raw_habitats)
         species_info.save_manifest(output_directory_path, "No habitats found in crosswalk")
         return
 

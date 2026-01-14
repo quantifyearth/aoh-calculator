@@ -17,7 +17,7 @@ def aohcalc_simple(
     crosswalk_path: Path,
     species_data_path: Path,
     output_directory_path: Path,
-    weight_layer_paths: list[Path]=[],
+    weight_layer_paths: list[Path] | None = None,
     force_habitat: bool=False,
 ) -> None:
     """An implementation of the AOH method from Brooks et al.
@@ -27,7 +27,8 @@ def aohcalc_simple(
     Arguments:
         habitat_path: Path of the land cover or habitat map raster.
         elevation_path: Path of the DEM raster.
-        crosswalk_path: Path to a CSV file which contains mapping of IUCN habitat class to values in the land cover or habitat map.
+        crosswalk_path: Path to a CSV file which contains mapping of IUCN habitat class to values in the
+            land cover or habitat map.
         species_data_path: Path to a GeoJSON containing the data for a given species. See README.md for format.
         output_directory_path: Directory into which the output GeoTIFF raster and summary JSON file will be written.
         weight_layer_paths: An optional list of rasters that will be multiplied by the generated raster.
@@ -64,7 +65,8 @@ def aohcalc_simple(
 
     habitat_list = species_info.habitat_list
     if force_habitat and len(habitat_list) == 0:
-        logger.error("No habitats found in crosswalk! %s_%s had %s", species_info.species_id, species_info.season, species_info.raw_habitats)
+        logger.error("No habitats found in crosswalk! %s_%s had %s",
+            species_info.species_id, species_info.season, species_info.raw_habitats)
         species_info.save_manifest(output_directory_path, "No habitats found in crosswalk")
         return
 
@@ -78,7 +80,7 @@ def aohcalc_simple(
     )
 
     weights_map : float | yg.YirgacheffeLayer = 1.0
-    if weight_layer_paths:
+    if weight_layer_paths is not None and weight_layer_paths:
         rasters = []
         for p in weight_layer_paths:
             try:
@@ -146,5 +148,3 @@ def aohcalc_simple(
         'prevalence': (aoh_total / range_total) if range_total else 0.0,
     })
     species_info.save_manifest(output_directory_path)
-
-

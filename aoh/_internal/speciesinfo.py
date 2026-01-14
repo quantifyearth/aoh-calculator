@@ -55,25 +55,25 @@ class SpeciesInfo:
     def elevation_lower(self) -> int:
         try:
             return math.floor(float(self.species_info.elevation_lower.values[0]))
-        except (AttributeError, TypeError):
+        except (AttributeError, TypeError) as exc:
             self.manifest["error"] = "Species data missing or corrupt elevation lower"
-            raise ValueError(self.manifest["error"])
+            raise ValueError(self.manifest["error"]) from exc
 
     @property
     def elevation_upper(self) -> int:
         try:
             return math.floor(float(self.species_info.elevation_upper.values[0]))
-        except (AttributeError, TypeError):
+        except (AttributeError, TypeError) as exc:
             self.manifest["error"] = "Species data missing or corrupt elevation upper"
-            raise ValueError(self.manifest["error"])
+            raise ValueError(self.manifest["error"]) from exc
 
     @property
     def raw_habitats(self) -> set[str]:
         try:
             return set(self.species_info.full_habitat_code.values[0].split('|'))
-        except (AttributeError, TypeError):
+        except (AttributeError, TypeError) as exc:
             self.manifest["error"] = "Species data missing or corrupt habitat data"
-            raise ValueError(self.manifest["error"])
+            raise ValueError(self.manifest["error"]) from exc
 
     def filenames(self, output_directory_path:Path) -> tuple[Path,Path]:
         species_id = self.species_id
