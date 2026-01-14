@@ -18,7 +18,8 @@ def generate_habitat_map(
     options: set[int],
 ) -> None:
     width, height = dimensions
-    options_list = list(options)
+    # list of set is not stable, so must be ordered
+    options_list = sorted(list(options))
     data = np.array(options_list * ((width * height) // len(options_list) + 1))[:width * height]
     data = data.reshape(height, width)
     dataset = gdal.GetDriverByName("GTiff").Create(
@@ -180,7 +181,7 @@ def test_simple_aoh(force_habitat) -> None:
             assert result.window.ysize == dims[1] / 2
             data = result.read_array(0, 0, result.window.xsize, result.window.ysize)
         expected = np.array(
-            [0, 1] * ((result.window.xsize * result.window.ysize) // 2)
+            [1, 0] * ((result.window.xsize * result.window.ysize) // 2)
         )[:result.window.xsize * result.window.ysize]
         expected = expected.reshape(result.window.ysize, result.window.xsize)
         assert (data == expected).all()
@@ -321,7 +322,7 @@ def test_simple_aoh_area(force_habitat) -> None:
             assert result.window.ysize == dims[1] / 2
             data = result.read_array(0, 0, result.window.xsize, result.window.ysize)
         expected = np.array(
-            [0, 4200000.0] * \
+            [4200000.0, 0.] * \
             ((result.window.xsize * result.window.ysize) // 2)
         )[:result.window.xsize * result.window.ysize]
         expected = expected.reshape(result.window.ysize, result.window.xsize)
@@ -385,7 +386,6 @@ def test_simple_aoh_multiple_habitats(force_habitat) -> None:
         # test are 50%
         assert manifest["range_total"] == 60
         assert manifest["dem_total"] == 60
-        print(manifest)
         assert math.isclose(manifest["hab_total"], 30)
         assert math.isclose(manifest["aoh_total"], 30)
         assert math.isclose(manifest["prevalence"], 1/2)
