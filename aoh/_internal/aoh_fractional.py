@@ -14,15 +14,28 @@ logger = logging.getLogger(__name__)
 yg.constants.YSTEP = 2048
 
 def aohcalc_fractional(
-    habitat_path: Path,
-    elevation_path: Path | tuple[Path,Path],
-    crosswalk_path: Path,
-    species_data_path: Path,
-    output_directory_path: Path,
-    weight_layer_paths: list[Path] | None = None,
+    habitat_path: Path | str,
+    elevation_path: Path | str | tuple[Path,Path] | tuple[str,str],
+    crosswalk_path: Path | str,
+    species_data_path: Path | str,
+    output_directory_path: Path | str,
+    weight_layer_paths: list[Path] | list[str] | None = None,
     force_habitat: bool=False,
 ) -> None:
     """An implementation of the AOH used in the IUCN's STAR process."""
+
+    habitat_path = Path(habitat_path)
+    if isinstance(elevation_path, tuple):
+        if len(elevation_path) != 2:
+            raise ValueError("Elevation path should be single raster or tuple of min/max raster paths.")
+        elevation_path = (Path(elevation_path[0]), Path(elevation_path[1]))
+    else:
+        elevation_path = Path(elevation_path)
+    crosswalk_path = Path(crosswalk_path)
+    species_data_path = Path(species_data_path)
+    if weight_layer_paths is not None:
+        weight_layer_paths = [Path(x) for x in weight_layer_paths]
+    output_directory_path = Path(output_directory_path)
 
     os.makedirs(output_directory_path, exist_ok=True)
 
