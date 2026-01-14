@@ -1,5 +1,7 @@
 import logging
+import operator
 import os
+from functools import reduce
 from pathlib import Path
 
 import yirgacheffe as yg
@@ -14,10 +16,10 @@ yg.constants.YSTEP = 2048
 def aohcalc_fractional(
     habitat_path: Path,
     elevation_path: Path | tuple[Path,Path],
-    area_path: Path | None,
     crosswalk_path: Path,
     species_data_path: Path,
     output_directory_path: Path,
+    weight_layer_paths: list[Path] | None = None,
     force_habitat: bool=False,
 ) -> None:
     """An implementation of the AOH used in the IUCN's STAR process."""
@@ -68,14 +70,18 @@ def aohcalc_fractional(
         datatype=yg.DataType.Float32,
     )
 
-    area_map : float | yg.YirgacheffeLayer = 1.0
-    if area_path:
-        try:
-            area_map = yg.read_narrow_raster(area_path)
-        except ValueError:
-            area_map = yg.read_raster(area_path)
+    weights_map : float | yg.YirgacheffeLayer = 1.0
+    if weight_layer_paths is not None and weight_layer_paths:
+        rasters = []
+        for p in weight_layer_paths:
+            try:
+                raster = yg.read_narrow_raster(p)
+            except ValueError:
+                raster = yg.read_raster(p)
+            rasters.append(raster)
+        weights_map = reduce(operator.mul, rasters)
 
-    range_total = (range_map * area_map).sum()
+    range_total = (range_map * weights_map).sum()
 
     # We've had instances of overflow issues with large ranges in the past
     assert range_total >= 0.0
@@ -114,17 +120,17 @@ def aohcalc_fractional(
     # filtering of the DEM returns zero, then we ignore this layer on the assumption that there is error in the
     # elevation data. This aligns with the data hygine practices recommended by Busana et al, as implemented
     # in cleaning.py, where any bad values for elevation cause us assume the entire range is valid.
-    hab_only_total = (filtered_by_habtitat * area_map).sum()
+    hab_only_total = (filtered_by_habtitat * weights_map).sum()
 
     filtered_elevation = (min_elevation_map <= elevation_upper) & (max_elevation_map >= elevation_lower)
 
-    dem_only_total = (filtered_elevation * range_map * area_map).sum()
+    dem_only_total = (filtered_elevation * range_map * weights_map).sum()
 
     filtered_by_both = filtered_elevation * filtered_by_habtitat
     if filtered_by_both.sum() == 0:
         filtered_by_both = filtered_by_habtitat
 
-    calc = filtered_by_both * area_map
+    calc = filtered_by_both * weights_map
 
     result_filename, _ = species_info.filenames(output_directory_path)
     with alive_bar(manual=True) as bar:

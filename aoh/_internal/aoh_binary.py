@@ -71,7 +71,6 @@ def aohcalc_binary(
         species_info.save_manifest(output_directory_path, "No habitats found in crosswalk")
         return
 
-
     habitat_map = yg.read_raster(habitat_path)
 
     if isinstance(elevation_path, Path):

@@ -150,11 +150,10 @@ def test_simple_aoh(force_habitat) -> None:
         aohcalc_fractional(
             habitats_path,
             (min_elevation_path, max_elevation_path),
-            None,
             crosswalk_path,
             species_data_path,
             output_dir,
-            force_habitat,
+            force_habitat=force_habitat,
         )
 
         expected_geotiff_path = output_dir / "1234_1.tif"
@@ -222,11 +221,10 @@ def test_no_habitat_aoh(force_habitat) -> None:
         aohcalc_fractional(
             habitats_path,
             (min_elevation_path, max_elevation_path),
-            None,
             crosswalk_path,
             species_data_path,
             output_dir,
-            force_habitat,
+            force_habitat=force_habitat,
         )
 
         expected_geotiff_path = output_dir / "1234_1.tif"
@@ -294,11 +292,11 @@ def test_simple_aoh_area(force_habitat) -> None:
         aohcalc_fractional(
             habitats_path,
             (min_elevation_path, max_elevation_path),
-            area_path,
             crosswalk_path,
             species_data_path,
             output_dir,
-            force_habitat,
+            weight_layer_paths=[area_path],
+            force_habitat=force_habitat,
         )
 
         expected_geotiff_path = output_dir / "1234_1.tif"
@@ -368,11 +366,10 @@ def test_simple_aoh_multiple_habitats(force_habitat) -> None:
         aohcalc_fractional(
             habitats_path,
             (min_elevation_path, max_elevation_path),
-            None,
             crosswalk_path,
             species_data_path,
             output_dir,
-            force_habitat,
+            force_habitat=force_habitat,
         )
 
         expected_geotiff_path = output_dir / "1234_1.tif"
@@ -442,11 +439,10 @@ def test_no_overlapping_habitats(force_habitat) -> None:
         aohcalc_fractional(
             habitats_path,
             (min_elevation_path, max_elevation_path),
-            None,
             crosswalk_path,
             species_data_path,
             output_dir,
-            force_habitat,
+            force_habitat=force_habitat,
         )
 
         expected_geotiff_path = output_dir / "1234_1.tif"
@@ -509,11 +505,10 @@ def test_no_elevation_aoh(force_habitat) -> None:
         aohcalc_fractional(
             habitats_path,
             (min_elevation_path, max_elevation_path),
-            None,
             crosswalk_path,
             species_data_path,
             output_dir,
-            force_habitat,
+            force_habitat=force_habitat,
         )
 
         expected_geotiff_path = output_dir / "1234_1.tif"

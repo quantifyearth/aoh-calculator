@@ -72,8 +72,9 @@ def main() -> None:
         args.area_path,
         args.crosswalk_path,
         args.species_data_path,
-        args.force_habitat,
         args.output_path
+        weight_layer_paths=[args.area_path] if args.area_path else [],
+        force_habitat=args.force_habitat,
     )
 
 if __name__ == "__main__":
