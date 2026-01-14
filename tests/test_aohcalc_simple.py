@@ -18,8 +18,8 @@ def generate_habitat_map(
     options: set[int],
 ) -> None:
     width, height = dimensions
-    options = list(options)
-    data = np.array(options * ((width * height) // len(options) + 1))[:width * height]
+    options_list = list(options)
+    data = np.array(options_list * ((width * height) // len(options_list) + 1))[:width * height]
     data = data.reshape(height, width)
     dataset = gdal.GetDriverByName("GTiff").Create(
         output_path,

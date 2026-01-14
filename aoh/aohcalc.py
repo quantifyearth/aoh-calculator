@@ -1,15 +1,8 @@
 import argparse
-import json
 import logging
-import math
-import os
-import sys
 from pathlib import Path
 
-import pandas as pd
-import yirgacheffe as yg
-from geopandas import gpd # type: ignore
-from alive_progress import alive_bar # type: ignore
+from . import aohcalc_iucn
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(message)s')
@@ -73,7 +66,7 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    aohcalc(
+    aohcalc_iucn(
         args.habitat_path,
         args.min_elevation_path,
         args.max_elevation_path,
