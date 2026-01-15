@@ -4,9 +4,9 @@ This repository contains code for making Area of Habitat (AOH) rasters from a mi
 
 ## Overview
 
-An AOH raster combines data on species range, habitat preferences and elevation preferences along with raster produces such as a Digital Elevation Map (DEM) and a land cover or habitat map and uses this information to generate a raster that regines the species range down to just those areas that match its preferences: its area of habitat.
+An AOH raster combines data on species range, habitat preferences and elevation preferences along with raster products such as a Digital Elevation Map (DEM) and a land cover or habitat map and uses this information to generate a raster that refines the species range down to just those areas that match its preferences: its area of habitat.
 
-The AOH library provides two implementations of the AOH method: a binary method and a fractional or proportional method. The binary method takes a single land cover or habitat map where each pixel is encoded to a particular land cover or habitat class (e.g., the [Copernicus Land Cover map]((https://land.copernicus.eu/en/products/global-dynamic-land-cover)) or the [Jung habitat map](https://zenodo.org/records/4058819)). The fractional method takes in a set of rasters, one per class, with each pixel being some proportional value. In this approach if a species has multiple habitat preferences and their maps overlap the resulting value in the AOH map will be a summation of those values.
+The AOH library provides two implementations of the AOH method: a binary method and a fractional or proportional method. The binary method takes a single land cover or habitat map where each pixel is encoded to a particular land cover or habitat class (e.g., the [Copernicus Land Cover map](https://land.copernicus.eu/en/products/global-dynamic-land-cover) or the [Jung habitat map](https://zenodo.org/records/4058819)). The fractional method takes in a set of rasters, one per class, with each pixel being some proportional value. In this approach if a species has multiple habitat preferences and their maps overlap the resulting value in the AOH map will be a summation of those values.
 
 ## Installation
 
@@ -40,83 +40,169 @@ Then install the matching Python package:
 pip install gdal[numpy]==YOUR_VERSION_HERE
 ```
 
-### Library Usage
+## Input Data Requirements
 
-You can also use AOH Calculator as a Python library:
+To generate AOH rasters, you will need the following inputs:
+
+### Species Data
+
+A GeoJSON file containing species range and attributes. Each file should include:
+
+- **id_no**: IUCN taxon ID of the species
+- **season**: Season using IUCN codes (1 = resident, 2 = breeding, 3 = non-breeding, 4 = passage, 5 = unknown)
+- **elevation_lower**: Lower elevation bound (in meters) where species is found
+- **elevation_upper**: Upper elevation bound (in meters) where species is found
+- **full_habitat_code**: Pipe-separated list of IUCN habitat codes (e.g., "1.5|1.6|2.1")
+- **geometry**: Polygon or MultiPolygon describing the species' geographic range for this season
+
+### Habitat Data
+
+**For binary/classified method:**
+- A single GeoTIFF raster where each pixel contains an integer value representing a habitat or land cover class
+- Examples: Copernicus Global Land Cover, Jung habitat classification
+
+**For fractional/proportional method:**
+- A directory containing multiple GeoTIFF rasters, one per habitat class
+- Files must be named `lcc_{value}.tif` where `{value}` matches the crosswalk table
+- Each pixel contains a fractional value (typically 0.0-1.0) indicating proportional coverage
+- **Note**: Use the `aoh-habitat-process` tool (described below) to convert classified habitat maps into this format while optionally reprojecting and rescaling
+
+### Elevation Data
+
+**Single DEM (recommended for high-resolution analyses):**
+- A GeoTIFF containing elevation values in meters
+
+**Min/Max DEM pair (for downscaled analyses):**
+- Two GeoTIFFs containing minimum and maximum elevation per pixel
+- Useful when working at coarser resolution while maintaining elevation accuracy
+
+### Crosswalk Table
+
+A CSV file mapping IUCN habitat codes to raster values with two columns:
+- **code**: IUCN habitat code (e.g., "1.5", "2.1")
+- **value**: Corresponding integer value in the habitat raster(s)
+
+### Optional: Weight Layers
+
+GeoTIFF rasters for area correction or masking:
+- **Pixel area raster**: Converts pixel counts to actual area (essential for geographic coordinate systems like WGS84)
+- **Mask raster**: Binary raster to clip results to specific regions (e.g., land areas only)
+
+### Technical Requirements
+
+- All rasters must share the same projection and pixel resolution
+- Elevation units must match between species data and DEM
+- This code has been tested with Lumbierres, Jung, and ESA datasets
+- Tested projections: Mercator, Mollweide, and Behrmann
+
+## Usage
+
+### Python Library
+
+The AOH Calculator provides two main functions for programmatic use:
 
 ```python
-import aoh
+from aoh import aohcalc_binary, aohcalc_fractional
+
+# Binary method - for classified habitat maps
+aohcalc_binary(
+    habitat_path="landcover.tif",
+    elevation_path="dem.tif",  # or tuple of (min_dem, max_dem)
+    crosswalk_path="iucn_to_landcover.csv",
+    species_data_path="species_123.geojson",
+    output_directory_path="results/",
+    weight_layer_paths=["pixel_areas.tif"],  # optional
+    force_habitat=False  # optional
+)
+
+# Fractional method - for proportional habitat coverage
+aohcalc_fractional(
+    habitats_directory_path="fractional_habitats/",
+    elevation_path=("dem_min.tif", "dem_max.tif"),  # or single DEM
+    crosswalk_path="iucn_to_habitat.csv",
+    species_data_path="species_123.geojson",
+    output_directory_path="results/",
+    weight_layer_paths=["pixel_areas.tif"],  # optional
+    force_habitat=False  # optional
+)
+
+# Other utilities
 from aoh import tidy_data
 from aoh.summaries import species_richness
 from aoh.validation import collate_data
-
-# Use core functions programmatically
-# See function documentation for parameters
 ```
 
-To generate a set of AOH rasters you will need:
+Both functions create two output files:
+- `{id_no}_{season}.tif`: The AOH raster
+- `{id_no}_{season}.json`: Metadata including range_total, hab_total, dem_total, aoh_total, and prevalence
 
-- IUCN range and other metadata (habitat preference, elevation, seasonality)
-- A habitat map raster
-- An elevation map raster
-
-The raster maps must be at the same scale. This code has been used with Lumbierres, Jung, and ESA datasets successfully, and using Mercator, Mollweide, and Behrmann projections.
-
-For examples on how to run the code see the docs directory.
+For detailed examples, see the docs directory.
 
 # Command Line Tools
 
 ## aoh-calc
 
-This is the main command designed to calculate the AOH of a single species.
+This is the main command for calculating the AOH of a single species. It supports both binary (classified) and fractional (proportional) habitat inputs.
 
 ```bash
 $ aoh-calc --help
-usage: aoh-calc [-h] --habitats HABITAT_PATH
-                --elevation-min MIN_ELEVATION_PATH
-                --elevation-max MAX_ELEVATION_PATH [--area AREA_PATH]
-                --crosswalk CROSSWALK_PATH --speciesdata SPECIES_DATA_PATH
-                [--force-habitat] --output OUTPUT_PATH
+usage: aoh-calc [-h] [--fractional_habitats FRACTIONAL_HABITAT_PATH | --classified_habitat DISCRETE_HABITAT_PATH]
+                [--elevation ELEVATION_PATH | --elevation-min MIN_ELEVATION_PATH --elevation-max MAX_ELEVATION_PATH]
+                [--area AREA_PATH] --crosswalk CROSSWALK_PATH
+                --speciesdata SPECIES_DATA_PATH [--force-habitat]
+                --output OUTPUT_PATH
 
 Area of habitat calculator.
 
 options:
   -h, --help            show this help message and exit
-  --habitats HABITAT_PATH
-                        Directory of habitat rasters, one per habitat class.
+  --fractional_habitats FRACTIONAL_HABITAT_PATH
+                        Directory of fractional habitat rasters, one per habitat class.
+  --classified_habitat DISCRETE_HABITAT_PATH
+                        Habitat raster, with each class a discrete value per pixel.
+  --elevation ELEVATION_PATH
+                        Elevation raster (for high-resolution analyses).
   --elevation-min MIN_ELEVATION_PATH
-                        Minimum elevation raster.
+                        Minimum elevation raster (for downscaled analyses).
   --elevation-max MAX_ELEVATION_PATH
-                        Maximum elevation raster
+                        Maximum elevation raster (for downscaled analyses).
   --area AREA_PATH      Optional area per pixel raster. Can be 1xheight.
   --crosswalk CROSSWALK_PATH
                         Path of habitat crosswalk table.
   --speciesdata SPECIES_DATA_PATH
                         Single species/seasonality geojson.
-  --force-habitat       If set, don't treat an empty habitat layer layer as
-                        per IRTWG.
+  --force-habitat       If set, don't treat an empty habitat layer as per IUCN RLTWG.
   --output OUTPUT_PATH  Directory where area geotiffs should be stored.
 ```
 
-To calculate the AoH we need the following information:
+### Usage Notes
 
-- Species data: A GeoJSON file that contains at least the following values about the species in question:
-  - id_no: the IUCN taxon ID of the species
-  - seasonal: the season using IUCN codes (1 = resident, 2 = breeding, 3 = non-breeding, 4 = passage, 5 = unknown)
-  - elevation_upper: The upper bound of elevation in which species is found
-  - elevation_lower: The lower bound of elevation in which species is found
-  - full_habitat_code: A list of the IUCN habitat codes in which the species is found
-  - geometry: A polygon or multipolygon describing the range of the species in that season
-- Habitats: A directory containing a series of GeoTIFFs, one per habitat class, indicating which pixels contain that habitat. Float values indicate partial occupancy.
-- Elevation-max/Elevation-min: Two GeoTIFFs, in which the highest and lowest elevation for that pixel is recorded. Must be in same units as those in the GeoJSON.
-- Crosswalk: A crosswalk table in CSV format that converts between the IUCN habitat classes and names of the habitat raster layers.
-- Area: An optiona raster containing the area of each pixel, which will be multipled with the AoH raster before saving to produce a result in area rather than pixel occupancy.
-- Force habitat: An optional flag that means rather than following the IUCN RLTWG guidelines, whereby if there is zero area in the habitat layer after filtering for species habitat preferneces we should revert to range, this flag will keep the result as zero. This is to allow for evaluation of scenarios that might lead to extinction via land use chnages.
-- Output directory - Two files will be output to this directory: an AoH raster with the format `{id_no}_{seasonal}.tif` and a manifest containing information about the raster `{id_no}_{seasonal}.json`.
+**Habitat Input Options:**
+- Use `--fractional_habitats` for a directory of per-class rasters with proportional values
+- Use `--classified_habitat` for a single raster with discrete habitat class values
+- You must specify exactly one of these options
+
+**Elevation Input Options:**
+- Use `--elevation` for a single DEM raster (recommended for high-resolution analyses)
+- Use `--elevation-min` and `--elevation-max` together for min/max elevation pairs (for downscaled analyses)
+- You must specify exactly one of these options
+
+**Output:**
+Two files are created in the output directory:
+- `{id_no}_{season}.tif`: The AOH raster
+- `{id_no}_{season}.json`: Metadata manifest with statistics
+
+**Optional Flags:**
+- `--area`: Weight layer for pixel area correction (essential for WGS84 and other geographic coordinate systems)
+- `--force-habitat`: Prevents fallback to range when habitat filtering yields zero area (useful for land-use change scenarios)
+
+See the "Input Data Requirements" section above for detailed format specifications.
 
 ## aoh-habitat-process
 
-Whilst for terrestrial AOH calculations there is normally just one habitat class per pixel, for other realms like marine (which is a 3D space) this isn't necessarily the case. To allow this package to work for all realms, we must split out terrestrial habitat maps that combine all classes into a single raster into per layer rasters. To assist with this, we provide the `aoh-habitat-process` command, which also allows for rescaling and reprojecting.
+This command prepares habitat data for use with the **fractional method** by converting a classified habitat map into a set of per-class rasters. It splits a single habitat raster (where each pixel contains one class value) into multiple rasters with fractional coverage values, while optionally rescaling and reprojecting.
+
+While terrestrial AOH calculations typically have one habitat class per pixel, other domains like marine environments (which represent 3D space) may have multiple overlapping habitats. This tool enables the fractional method to work across all realms by creating the required per-class raster format.
 
 ```bash
 $ aoh-habitat-process --help

@@ -20,36 +20,91 @@ def aohcalc_binary(
     weight_layer_paths: list[Path] | list[str] | None = None,
     force_habitat: bool=False,
 ) -> None:
-    """An implementation of the AOH method from Brooks et al.
+    """Calculate as Area of Habitat using classified/discrete habitat data.
 
-    Note, all rasters must be in the same projection and pixel scale.
+    This implementation of the AOH method from Brooks et al. (2019) works with
+    classified habitat rasters where each pixel contains a discrete integer value
+    representing a single habitat type (e.g., Copernicus Global Land Cover or Jung
+    habitat classification).
 
-    Arguments:
-        habitat_path: Path of the land co                                           ver or habitat map raster.
-        elevation_path: Path to DEM raster, or tuple of lower and upper bounds (min_dem_path, max_dem_path)
-            for downscaled analyses following IUCN recommendations.
-        crosswalk_path: Path to a CSV file which contains mapping of IUCN habitat class to values in the
-            land cover or habitat map.
-        species_data_path: Path to a GeoJSON containing the data for a given species. See README.md for format.
-        output_directory_path: Directory into which the output GeoTIFF raster and summary JSON file will be written.
-        weight_layer_paths: An optional list of rasters that will be multiplied by the generated raster.
-        force_habitat: If true, do not revert to range if habitat layer contains no valid pixels.
+    The method filters a species' geographic range by:
+    1. Habitat suitability (based on IUCN habitat preferences)
+    2. Elevation preferences (using DEM data)
+    3. Optional weight layers (e.g., pixel area correction or masking)
 
-    Common uses:
+    Elevation data is accepted in two forms. Either a single raster with a heigh
+    value per pixel, or a pair of rasters, each containing the lower and upper
+    limits of the elevation for that pixel. This later option is useful for
+    running pipelines at a lower resolution but keeping better accuracy than
+    a single elevation layer would.
 
-    - **Area correction**: Pass a raster of pixel areas in square meters
-      to convert from pixel counts to actual area (important for
-      geographic coordinate systems like WGS84)
-    - **Spatial masking**: Pass a binary raster to clip results to
-      land areas or other regions of interest
+    IUCN Fallback Behavior: Following IUCN Red List Technical Working Group
+    recommendations, if habitat or elevation filtering results in zero area, the
+    method reverts to the full species range unless force_habitat=True.
 
-    Examples
-    --------
-    # Area correction for WGS84
-    calculate_aoh(..., multipliers=pixel_area_raster)
+    Args:
+        habitat_path: Path to a classified habitat raster where each pixel contains
+            an integer value representing a land cover or habitat class.
+        elevation_path: Either a single DEM raster path, or a tuple of
+            (min_elevation_path, max_elevation_path) for downscaled analyses
+            following IUCN recommendations.
+        crosswalk_path: Path to a CSV file mapping IUCN habitat codes to raster
+            values. Must have columns 'code' (IUCN habitat code) and 'value'
+            (corresponding raster value).
+        species_data_path: Path to a GeoJSON file containing species range and
+            attributes. Must include: id_no, season, elevation_lower, elevation_upper,
+            and full_habitat_code (pipe-separated IUCN codes).
+        output_directory_path: A directory for output files. Creates two files:
+            - {id_no}_{season}.tif: AOH raster (or {id_no}.tif if no season)
+            - {id_no}_{season}.json: Metadata including range_total, hab_total,
+              dem_total, aoh_total, and prevalence
+        weight_layer_paths: An optional list of rasters to multiply with the result.
+            Common uses include pixel area correction and spatial masking. Multiple
+            rasters are multiplied together.
+        force_habitat: If True, do not revert to range when habitat filtering
+            yields zero area. Useful for land-use change scenarios where habitat
+            loss should result in zero AOH.
 
-    # Mask to land and apply area correction
-    calculate_aoh(..., multipliers=[land_mask, pixel_area_raster])
+    Returns:
+        None. Outputs are written to files in output_directory_path.
+
+    Notes:
+        - All rasters must share the same projection and pixel resolution
+        - Output raster extent is clipped to species range geometry
+
+    Examples:
+        Basic usage with classified habitat map:
+            >>> aohcalc_binary(
+            ...     habitat_path="landcover.tif",
+            ...     elevation_path="dem.tif",
+            ...     crosswalk_path="iucn_to_landcover.csv",
+            ...     species_data_path="species_123.geojson",
+            ...     output_directory_path="results/"
+            ... )
+
+        With pixel area correction for WGS84:
+            >>> aohcalc_binary(
+            ...     habitat_path="landcover.tif",
+            ...     elevation_path="dem.tif",
+            ...     crosswalk_path="iucn_to_landcover.csv",
+            ...     species_data_path="species_123.geojson",
+            ...     output_directory_path="results/",
+            ...     weight_layer_paths=["pixel_areas.tif"]
+            ... )
+
+        Downscaled analysis with min/max elevation:
+            >>> aohcalc_binary(
+            ...     habitat_path="landcover.tif",
+            ...     elevation_path=("dem_min.tif", "dem_max.tif"),
+            ...     crosswalk_path="iucn_to_landcover.csv",
+            ...     species_data_path="species_123.geojson",
+            ...     output_directory_path="results/"
+            ... )
+
+    References:
+        Brooks, T. M., et al. (2019). Measuring Terrestrial Area of Habitat (AOH)
+        and Its Utility for the IUCN Red List. Trends in Ecology & Evolution, 34(11),
+        977-986. https://doi.org/10.1016/j.tree.2019.06.009
     """
 
     habitat_path = Path(habitat_path)
