@@ -148,7 +148,7 @@ This is the main command for calculating the AOH of a single species. It support
 $ aoh-calc --help
 usage: aoh-calc [-h] [--fractional_habitats FRACTIONAL_HABITAT_PATH | --classified_habitat DISCRETE_HABITAT_PATH]
                 [--elevation ELEVATION_PATH | --elevation-min MIN_ELEVATION_PATH --elevation-max MAX_ELEVATION_PATH]
-                [--area AREA_PATH] --crosswalk CROSSWALK_PATH
+                [--weights WEIGHT_PATHS] --crosswalk CROSSWALK_PATH
                 --speciesdata SPECIES_DATA_PATH [--force-habitat]
                 --output OUTPUT_PATH
 
@@ -166,7 +166,10 @@ options:
                         Minimum elevation raster (for downscaled analyses).
   --elevation-max MAX_ELEVATION_PATH
                         Maximum elevation raster (for downscaled analyses).
-  --area AREA_PATH      Optional area per pixel raster. Can be 1xheight.
+  --weights WEIGHT_PATHS
+                        Optional weight layer raster(s) to multiply with result.
+                        Can specify multiple times. Common uses: pixel area
+                        correction, spatial masking.
   --crosswalk CROSSWALK_PATH
                         Path of habitat crosswalk table.
   --speciesdata SPECIES_DATA_PATH
@@ -187,13 +190,29 @@ options:
 - Use `--elevation-min` and `--elevation-max` together for min/max elevation pairs (for downscaled analyses)
 - You must specify exactly one of these options
 
+**Weight Layers (Optional):**
+Weight layers are rasters that are multiplied with the AOH result. You can specify `--weights` multiple times to apply multiple layers, which will be multiplied together.
+
+Common use cases:
+- **Pixel area correction**: Essential for geographic coordinate systems (WGS84) to convert pixel counts to actual area
+  ```bash
+  --weights pixel_areas.tif
+  ```
+- **Spatial masking**: Clip results to specific regions (e.g., land areas only)
+  ```bash
+  --weights land_mask.tif
+  ```
+- **Combined**: Apply both area correction and masking
+  ```bash
+  --weights pixel_areas.tif --weights land_mask.tif
+  ```
+
 **Output:**
 Two files are created in the output directory:
 - `{id_no}_{season}.tif`: The AOH raster
 - `{id_no}_{season}.json`: Metadata manifest with statistics
 
-**Optional Flags:**
-- `--area`: Weight layer for pixel area correction (essential for WGS84 and other geographic coordinate systems)
+**Other Flags:**
 - `--force-habitat`: Prevents fallback to range when habitat filtering yields zero area (useful for land-use change scenarios)
 
 See the "Input Data Requirements" section above for detailed format specifications.

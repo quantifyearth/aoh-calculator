@@ -50,11 +50,12 @@ def main() -> None:
     )
 
     parser.add_argument(
-        '--area',
+        '--weights',
         type=Path,
-        help="Optional area per pixel raster. Can be 1xheight.",
+        help="Optional weight layer raster(s) to multiply with result. Can specify multiple times. Common uses: pixel area correction, spatial masking.",
         required=False,
-        dest="area_path",
+        action='append',
+        dest="weight_paths",
     )
     parser.add_argument(
         '--crosswalk',
@@ -114,7 +115,7 @@ def main() -> None:
             args.crosswalk_path,
             args.species_data_path,
             args.output_path,
-            [args.area_path] if args.area_path else [],
+            args.weight_paths if args.weight_paths else [],
             args.force_habitat,
         )
     else:
@@ -124,7 +125,7 @@ def main() -> None:
             args.crosswalk_path,
             args.species_data_path,
             args.output_path,
-            [args.area_path] if args.area_path else [],
+            args.weight_paths if args.weight_paths else [],
             args.force_habitat,
         )
 
