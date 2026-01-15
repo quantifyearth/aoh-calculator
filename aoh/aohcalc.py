@@ -52,7 +52,8 @@ def main() -> None:
     parser.add_argument(
         '--weights',
         type=Path,
-        help="Optional weight layer raster(s) to multiply with result. Can specify multiple times. Common uses: pixel area correction, spatial masking.",
+        help="Optional weight layer raster(s) to multiply with result. Can specify multiple times. " \
+            "Common uses: pixel area correction, spatial masking.",
         required=False,
         action='append',
         dest="weight_paths",
