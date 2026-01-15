@@ -5,6 +5,8 @@
 * Renamed the existing AOH calculation function to make it clear that it is for fractional AOH calculations.
 * Tweaked parameters to allow both single and min/max pair DEM files.
 * Changed parameter order to be consistent with new binary AOH method.
+* Updated aoh-calc command to allow multiple weight layers rather than just one.
+* Updated documentation.
 
 ### Added
 
