@@ -1,12 +1,12 @@
 # AOH Calculator
 
-This repository contains code for making Area of Habitat (AOH) rasters from a mix of data sources, following the methodology described in [Brooks et al](https://www.cell.com/trends/ecology-evolution/fulltext/S0169-5347(19)30189-2) and adhering to the IUCN Redlist Technical Working Group guidance on AoH production. This work is part of the [LIFE biodiversity map](https://www.cambridge.org/engage/coe/article-details/660e6f08418a5379b00a82b2) work at the University of Cambridge. It also contains some scripts for summarising AOH data into maps of species richness and species endemism.
+This repository contains both a Python library and command line tools for making Area of Habitat (AOH) rasters from a mix of data sources, following the methodology described in [Brooks et al](https://www.cell.com/trends/ecology-evolution/fulltext/S0169-5347(19)30189-2) and adhering to the IUCN Redlist Technical Working Group guidance on AOH production.
 
 ## Overview
 
-An AOH raster combines data on species range, habitat preferences and elevation preferences along with raster products such as a Digital Elevation Map (DEM) and a land cover or habitat map and uses this information to generate a raster that refines the species range down to just those areas that match its preferences: its area of habitat.
+An AOH raster combines data on species range, habitat preferences and elevation preferences along with raster products such as a Digital Elevation Map (DEM) and a land cover or habitat map, and which are combined to generate a raster that refines the species range down to just those areas that match its preferences: its area of habitat, or AOH.
 
-The AOH library provides two implementations of the AOH method: a binary method and a fractional or proportional method. The binary method takes a single land cover or habitat map where each pixel is encoded to a particular land cover or habitat class (e.g., the [Copernicus Land Cover map](https://land.copernicus.eu/en/products/global-dynamic-land-cover) or the [Jung habitat map](https://zenodo.org/records/4058819)). The fractional method takes in a set of rasters, one per class, with each pixel being some proportional value. In this approach if a species has multiple habitat preferences and their maps overlap the resulting value in the AOH map will be a summation of those values.
+This package provides two implementations of the AOH method: a binary method and a fractional, or proportional, method. The binary method takes a single land cover or habitat map where each pixel is encoded to a particular land cover or habitat class (e.g., the [Copernicus Land Cover map](https://land.copernicus.eu/en/products/global-dynamic-land-cover) or the [Jung habitat map](https://zenodo.org/records/4058819)). The fractional method takes in a set of rasters, one per class, with each pixel being some proportional value. In this approach if a species has multiple habitat preferences and their maps overlap the resulting value in the AOH map will be a summation of those values.
 
 ## Installation
 
@@ -65,7 +65,7 @@ A GeoJSON file containing species range and attributes. Each file should include
 - A directory containing multiple GeoTIFF rasters, one per habitat class
 - Files must be named `lcc_{value}.tif` where `{value}` matches the crosswalk table
 - Each pixel contains a fractional value (typically 0.0-1.0) indicating proportional coverage
-- **Note**: Use the `aoh-habitat-process` tool (described below) to convert classified habitat maps into this format while optionally reprojecting and rescaling
+- **Note**: Use the `aoh-habitat-process` tool (described below) to convert a classified habitat map into this format while optionally reprojecting and rescaling
 
 ### Elevation Data
 
@@ -73,19 +73,19 @@ A GeoJSON file containing species range and attributes. Each file should include
 - A GeoTIFF containing elevation values in meters
 
 **Min/Max DEM pair (for downscaled analyses):**
-- Two GeoTIFFs containing minimum and maximum elevation per pixel
+- Two GeoTIFFs containing minimum and maximum elevation per pixel in meters
 - Useful when working at coarser resolution while maintaining elevation accuracy
 
 ### Crosswalk Table
 
 A CSV file mapping IUCN habitat codes to raster values with two columns:
 - **code**: IUCN habitat code (e.g., "1.5", "2.1")
-- **value**: Corresponding integer value in the habitat raster(s)
+- **value**: Corresponding integer value in the land cover or habitat raster(s)
 
 ### Optional: Weight Layers
 
 GeoTIFF rasters for area correction or masking:
-- **Pixel area raster**: Converts pixel counts to actual area (essential for geographic coordinate systems like WGS84)
+- **Pixel area raster**: Converts pixel values to actual area (essential for geographic coordinate systems like WGS84)
 - **Mask raster**: Binary raster to clip results to specific regions (e.g., land areas only)
 
 ### Technical Requirements
@@ -136,7 +136,7 @@ Both functions create two output files:
 - `{id_no}_{season}.tif`: The AOH raster
 - `{id_no}_{season}.json`: Metadata including range_total, hab_total, dem_total, aoh_total, and prevalence
 
-For detailed examples, see the docs directory.
+For detailed examples, see the doc strings on the functions directory.
 
 # Command Line Tools
 
