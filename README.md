@@ -6,7 +6,7 @@ This repository contains code for making Area of Habitat (AOH) rasters from a mi
 
 An AOH raster combines data on species range, habitat preferences and elevation preferences along with raster produces such as a Digital Elevation Map (DEM) and a land cover or habitat map and uses this information to generate a raster that regines the species range down to just those areas that match its preferences: its area of habitat.
 
-The AOH library provides two implementations of the AOH method: a binary method and a fractional method. The binary method takes a single land cover or habitat map where each pixel is encoded to a particular land cover or habitat class (e.g., the [Copernicus Land Cover map]((https://land.copernicus.eu/en/products/global-dynamic-land-cover)) or the [Jung habitat map](https://zenodo.org/records/4058819)). The fractional method takes in a set of rasters, one per class, with each pixel being some proportional value. In this approach if a species has multiple habitat preferences and their maps overlap the resulting value in the AOH map will be a summation of those values.
+The AOH library provides two implementations of the AOH method: a binary method and a fractional or proportional method. The binary method takes a single land cover or habitat map where each pixel is encoded to a particular land cover or habitat class (e.g., the [Copernicus Land Cover map]((https://land.copernicus.eu/en/products/global-dynamic-land-cover)) or the [Jung habitat map](https://zenodo.org/records/4058819)). The fractional method takes in a set of rasters, one per class, with each pixel being some proportional value. In this approach if a species has multiple habitat preferences and their maps overlap the resulting value in the AOH map will be a summation of those values.
 
 ## Installation
 
@@ -63,8 +63,6 @@ To generate a set of AOH rasters you will need:
 The raster maps must be at the same scale. This code has been used with Lumbierres, Jung, and ESA datasets successfully, and using Mercator, Mollweide, and Behrmann projections.
 
 For examples on how to run the code see the docs directory.
-
-This project makes heavy use of [Yirgacheffe](https://github.com/quantifyearth/yirgacheffe) to do the numerical work, and the code in this repository is mostly for getting the data to feed to yirgacheffe. The advantages of using Yirgacheffe are that it hides all the offsetting required for the math to keep the AoH logic simple, deals with the archaic GDAL API bindings, and uses map chunking to mean progress can made with minimal memory footprints despite some base map rasters being 150GB and up.
 
 # Command Line Tools
 

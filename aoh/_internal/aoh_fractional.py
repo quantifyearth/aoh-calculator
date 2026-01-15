@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 yg.constants.YSTEP = 2048
 
 def aohcalc_fractional(
-    habitat_path: Path | str,
+    habitats_directory_path: Path | str,
     elevation_path: Path | str | tuple[Path,Path] | tuple[str,str],
     crosswalk_path: Path | str,
     species_data_path: Path | str,
@@ -22,7 +22,39 @@ def aohcalc_fractional(
     weight_layer_paths: list[Path] | list[str] | None = None,
     force_habitat: bool=False,
 ) -> None:
-    """An implementation of the AOH used in the IUCN's STAR process."""
+    """An implementation of the AOH method from Brooks et al. that works with a set of fractional or proportional
+    coverage environmental layers.
+
+    Note, all rasters must be in the same projection and pixel scale.
+
+    Arguments:
+        habitats_directory_path: Path of a directory containing a raster per land cover or habitat class with
+            proportional values per pixel.
+        elevation_path: Path to DEM raster, or tuple of lower and upper bounds (min_dem_path, max_dem_path)
+            for downscaled analyses following IUCN recommendations.
+        crosswalk_path: Path to a CSV file which contains mapping of IUCN habitat class to values in the
+            land cover or habitat map.
+        species_data_path: Path to a GeoJSON containing the data for a given species. See README.md for format.
+        output_directory_path: Directory into which the output GeoTIFF raster and summary JSON file will be written.
+        weight_layer_paths: An optional list of rasters that will be multiplied by the generated raster.
+        force_habitat: If true, do not revert to range if habitat layer contains no valid pixels.
+
+    Common uses:
+
+    - **Area correction**: Pass a raster of pixel areas in square meters
+    to convert from pixel counts to actual area (important for
+    geographic coordinate systems like WGS84)
+    - **Spatial masking**: Pass a binary raster to clip results to
+    land areas or other regions of interest
+
+    Examples
+    --------
+    # Area correction for WGS84
+    calculate_aoh(..., multipliers=pixel_area_raster)
+
+    # Mask to land and apply area correction
+    calculate_aoh(..., multipliers=[land_mask, pixel_area_raster])
+    """
 
     habitat_path = Path(habitat_path)
     if isinstance(elevation_path, tuple):

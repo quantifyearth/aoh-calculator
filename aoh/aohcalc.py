@@ -2,7 +2,7 @@ import argparse
 import logging
 from pathlib import Path
 
-from . import aohcalc_fractional, aohcalc_binary
+from ._internal import aohcalc_fractional, aohcalc_binary
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(message)s')

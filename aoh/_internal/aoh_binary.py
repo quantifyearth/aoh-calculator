@@ -25,9 +25,9 @@ def aohcalc_binary(
     Note, all rasters must be in the same projection and pixel scale.
 
     Arguments:
-        habitat_path: Path of the land cover or habitat map raster.
-        elevation_path: Path to DEM raster, or tuple of (min_dem_path, max_dem_path)
-        for downscaled analyses following IUCN recommendations.
+        habitat_path: Path of the land co                                           ver or habitat map raster.
+        elevation_path: Path to DEM raster, or tuple of lower and upper bounds (min_dem_path, max_dem_path)
+            for downscaled analyses following IUCN recommendations.
         crosswalk_path: Path to a CSV file which contains mapping of IUCN habitat class to values in the
             land cover or habitat map.
         species_data_path: Path to a GeoJSON containing the data for a given species. See README.md for format.
@@ -35,13 +35,13 @@ def aohcalc_binary(
         weight_layer_paths: An optional list of rasters that will be multiplied by the generated raster.
         force_habitat: If true, do not revert to range if habitat layer contains no valid pixels.
 
-        Common uses:
+    Common uses:
 
-        - **Area correction**: Pass a raster of pixel areas in square meters
-          to convert from pixel counts to actual area (important for
-          geographic coordinate systems like WGS84)
-        - **Spatial masking**: Pass a binary raster to clip results to
-          land areas or other regions of interest
+    - **Area correction**: Pass a raster of pixel areas in square meters
+      to convert from pixel counts to actual area (important for
+      geographic coordinate systems like WGS84)
+    - **Spatial masking**: Pass a binary raster to clip results to
+      land areas or other regions of interest
 
     Examples
     --------
@@ -61,6 +61,8 @@ def aohcalc_binary(
         elevation_path = Path(elevation_path)
     crosswalk_path = Path(crosswalk_path)
     species_data_path = Path(species_data_path)
+    if weight_layer_paths is not None:
+        weight_layer_paths = [Path(x) for x in weight_layer_paths]
     output_directory_path = Path(output_directory_path)
 
     os.makedirs(output_directory_path, exist_ok=True)
