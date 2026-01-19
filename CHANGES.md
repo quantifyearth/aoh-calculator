@@ -1,3 +1,17 @@
+## v2.0.0 (15/01/2026)
+
+### Changed
+
+* Renamed the existing AOH calculation function to make it clear that it is for fractional AOH calculations.
+* Tweaked parameters to allow both single and min/max pair DEM files.
+* Changed parameter order to be consistent with new binary AOH method.
+* Updated aoh-calc command to allow multiple weight layers rather than just one.
+* Updated documentation.
+
+### Added
+
+* Added a new AOH calculation function that works on a single classified habit or land cover input layer.
+
 ## v1.1.2 (12/01/2026)
 
 ### Changed

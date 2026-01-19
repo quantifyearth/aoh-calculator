@@ -1,219 +1,62 @@
 import argparse
-import json
 import logging
-import math
-import os
-import sys
 from pathlib import Path
 
-import pandas as pd
-import yirgacheffe as yg
-from geopandas import gpd # type: ignore
-from alive_progress import alive_bar # type: ignore
-
-yg.constants.YSTEP = 2048
+from ._internal import aohcalc_fractional, aohcalc_binary
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(message)s')
 
-def load_crosswalk_table(table_file_name: Path) -> dict[str,list[int]]:
-    rawdata = pd.read_csv(table_file_name)
-    result : dict[str,list[int]] = {}
-    for _, row in rawdata.iterrows():
-        code = str(row.code)
-        try:
-            result[code].append(int(row.value))
-        except KeyError:
-            result[code] = [int(row.value)]
-    return result
-
-def crosswalk_habitats(crosswalk_table: dict[str, list[int]], raw_habitats: set[str]) -> set[int]:
-    result = set()
-    for habitat in raw_habitats:
-        try:
-            crosswalked_habatit = crosswalk_table[habitat]
-        except KeyError:
-            continue
-        result |= set(crosswalked_habatit)
-    return result
-
-def aohcalc(
-    habitat_path: Path,
-    min_elevation_path: Path,
-    max_elevation_path: Path,
-    area_path: Path | None,
-    crosswalk_path: Path,
-    species_data_path: Path,
-    force_habitat: bool,
-    output_directory_path: Path,
-) -> None:
-    os.makedirs(output_directory_path, exist_ok=True)
-
-    crosswalk_table = load_crosswalk_table(crosswalk_path)
-
-    os.environ["OGR_GEOJSON_MAX_OBJ_SIZE"] = "0"
-    try:
-        filtered_species_info = gpd.read_file(species_data_path)
-    except: # pylint:disable=W0702
-        logger.error("Failed to read %s", species_data_path)
-        sys.exit(1)
-    assert filtered_species_info.shape[0] == 1
-
-    # We drop the geometry as that's a lot of data, more than the raster often
-    species_info = filtered_species_info.drop('geometry', axis=1)
-    manifest = {k: v[0].item() if hasattr(v[0], 'item') else v[0] for (k, v) in species_info.items()}
-
-    species_id = filtered_species_info.id_no.values[0]
-    try:
-        seasonality = filtered_species_info.season.values[0]
-        result_filename = output_directory_path / f"{species_id}_{seasonality}.tif"
-        manifest_filename = output_directory_path / f"{species_id}_{seasonality}.json"
-    except AttributeError:
-        seasonality = None
-        result_filename = output_directory_path / f"{species_id}.tif"
-        manifest_filename = output_directory_path / f"{species_id}.json"
-
-    try:
-        elevation_lower = math.floor(float(filtered_species_info.elevation_lower.values[0]))
-        elevation_upper = math.ceil(float(filtered_species_info.elevation_upper.values[0]))
-        raw_habitats = set(filtered_species_info.full_habitat_code.values[0].split('|'))
-    except (AttributeError, TypeError):
-        logger.error("Species data missing one or more needed attributes: %s", filtered_species_info)
-        manifest["error"] = "Species data missing one or more needed attributes"
-        with open(manifest_filename, 'w', encoding="utf-8") as f:
-            json.dump(manifest, f)
-        return
-
-    habitat_list = crosswalk_habitats(crosswalk_table, raw_habitats)
-    if force_habitat and len(habitat_list) == 0:
-        logger.error("No habitats found in crosswalk! %s_%s had %s", species_id, seasonality, raw_habitats)
-        manifest["error"] = "No habitats found in crosswalk"
-        with open(manifest_filename, 'w', encoding="utf-8") as f:
-            json.dump(manifest, f)
-        return
-
-    ideal_habitat_map_files = [habitat_path / f"lcc_{x}.tif" for x in habitat_list]
-    habitat_map_files = [x for x in ideal_habitat_map_files if x.exists()]
-    if force_habitat and len(habitat_map_files) == 0:
-        logger.error("No matching habitat layers found for %s_%s in %s: %s",
-                     species_id, seasonality, habitat_path, habitat_list)
-        manifest["error"] = "No matching habitat layers found"
-        with open(manifest_filename, 'w', encoding="utf-8") as f:
-            json.dump(manifest, f)
-        return
-
-    habitat_maps = [yg.read_raster(x) for x in habitat_map_files]
-
-    min_elevation_map = yg.read_raster(min_elevation_path)
-    max_elevation_map = yg.read_raster(max_elevation_path)
-    range_map = yg.read_shape_like(
-        species_data_path,
-        min_elevation_map,
-        datatype=yg.DataType.Float32,
-    )
-
-    area_map : float | yg.YirgacheffeLayer = 1.0
-    if area_path:
-        try:
-            area_map = yg.read_narrow_raster(area_path)
-        except ValueError:
-            area_map = yg.read_raster(area_path)
-
-    range_total = (range_map * area_map).sum()
-
-    # We've had instances of overflow issues with large ranges in the past
-    assert range_total >= 0.0
-
-    # Habitat evaluation. In the IUCN Redlist Technical Working Group recommendations, if there are no defined
-    # habitats, then we revert to range. If the area of the habitat map filtered by species habitat is zero then we
-    # similarly revert to range as the assumption is that there is an error in the habitat coding.
-    #
-    # However, for methodologies, such as the LIFE biodiversity metric by Eyres et al, where you want to do
-    # land use change impact scenarios, this rule doesn't work, as it treats extinction due to land use change as
-    # then actually filling the range. This we have the force_habitat flag for this use case.
-    if habitat_maps or force_habitat:
-        combined_habitat = habitat_maps[0]
-        for map_layer in habitat_maps[1:]:
-            combined_habitat = combined_habitat + map_layer
-        combined_habitat = combined_habitat.clip(max=1.0)
-        filtered_by_habtitat = range_map * combined_habitat
-        if filtered_by_habtitat.sum() == 0:
-            if force_habitat:
-                manifest.update({
-                    'range_total': range_total,
-                    'hab_total': 0,
-                    'dem_total': 0,
-                    'aoh_total': 0,
-                    'prevalence': 0,
-                    'error': 'No habitat found and --force-habitat specified'
-                })
-                with open(manifest_filename, 'w', encoding="utf-8") as f:
-                    json.dump(manifest, f)
-                return
-            else:
-                filtered_by_habtitat = range_map
-    else:
-        filtered_by_habtitat = range_map
-
-    # Elevation evaluation. As per the IUCN Redlist Technical Working Group recommendations, if the elevation
-    # filtering of the DEM returns zero, then we ignore this layer on the assumption that there is error in the
-    # elevation data. This aligns with the data hygine practices recommended by Busana et al, as implemented
-    # in cleaning.py, where any bad values for elevation cause us assume the entire range is valid.
-    hab_only_total = (filtered_by_habtitat * area_map).sum()
-
-    filtered_elevation = (min_elevation_map <= elevation_upper) & (max_elevation_map >= elevation_lower)
-
-    dem_only_total = (filtered_elevation * range_map * area_map).sum()
-
-    filtered_by_both = filtered_elevation * filtered_by_habtitat
-    if filtered_by_both.sum() == 0:
-        filtered_by_both = filtered_by_habtitat
-
-    calc = filtered_by_both * area_map
-
-    with alive_bar(manual=True) as bar:
-        aoh_total = calc.to_geotiff(result_filename, and_sum=True, callback=bar)
-
-    manifest.update({
-        'range_total': range_total,
-        'hab_total': hab_only_total,
-        'dem_total': dem_only_total,
-        'aoh_total': aoh_total,
-        'prevalence': (aoh_total / range_total) if range_total else 0,
-    })
-    with open(manifest_filename, 'w', encoding="utf-8") as f:
-        json.dump(manifest, f)
-
-
 def main() -> None:
     parser = argparse.ArgumentParser(description="Area of habitat calculator.")
+
+    # land cover/habitat map arguments - either single raster for binary or directory for many
     parser.add_argument(
-        '--habitats',
+        '--fractional_habitats',
         type=Path,
-        help="Directory of habitat rasters, one per habitat class.",
-        required=True,
-        dest="habitat_path"
+        help="Directory of fractional habitat rasters, one per habitat class.",
+        required=False,
+        dest="fractional_habitat_path",
+    )
+    parser.add_argument(
+        '--classified_habitat',
+        type=Path,
+        help="Habitat raster, with each class a discrete value per pixel.",
+        required=False,
+        dest="discrete_habitat_path",
+    )
+
+    # Elevation arguments - either single or min/max pair
+    parser.add_argument(
+        '--elevation',
+        type=Path,
+        help="Elevation raster (for high-resolution analyses).",
+        required=False,
+        dest="elevation_path",
     )
     parser.add_argument(
         '--elevation-min',
         type=Path,
-        help="Minimum elevation raster.",
-        required=True,
+        help="Minimum elevation raster (for downscaled analyses).",
+        required=False,
         dest="min_elevation_path",
     )
     parser.add_argument(
         '--elevation-max',
         type=Path,
-        help="Maximum elevation raster",
-        required=True,
+        help="Maximum elevation raster (for downscaled analyses).",
+        required=False,
         dest="max_elevation_path",
     )
+
     parser.add_argument(
-        '--area',
+        '--weights',
         type=Path,
-        help="Optional area per pixel raster. Can be 1xheight.",
+        help="Optional weight layer raster(s) to multiply with result. Can specify multiple times. " \
+            "Common uses: pixel area correction, spatial masking.",
         required=False,
-        dest="area_path",
+        action='append',
+        dest="weight_paths",
     )
     parser.add_argument(
         '--crosswalk',
@@ -244,16 +87,48 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    aohcalc(
-        args.habitat_path,
-        args.min_elevation_path,
-        args.max_elevation_path,
-        args.area_path,
-        args.crosswalk_path,
-        args.species_data_path,
-        args.force_habitat,
-        args.output_path
-    )
+    has_fractional = args.fractional_habitat_path is not None
+    has_discrete = args.discrete_habitat_path is not None
+    if has_fractional and has_discrete:
+        parser.error("Specify either --fractional_habitats or --classified_habitat, not both")
+    elif not has_fractional and not has_discrete:
+        parser.error("Must specify either --fractional_habitats or --classified_habitat")
+
+    has_single = args.elevation_path is not None
+    has_minmax = (args.min_elevation_path is not None) or (args.max_elevation_path is not None)
+
+    if has_single and has_minmax:
+        parser.error("Specify either --elevation or --elevation-min/--elevation-max, not both")
+    elif not has_single and not has_minmax:
+        parser.error("Must specify either --elevation or both --elevation-min and --elevation-max")
+    elif has_minmax and (args.min_elevation_path is None or args.max_elevation_path is None):
+        parser.error("Both --elevation-min and --elevation-max must be specified together")
+
+    if has_single:
+        elevation = args.elevation_path
+    else:
+        elevation = (args.min_elevation_path, args.max_elevation_path)
+
+    if has_fractional:
+        aohcalc_fractional(
+            args.fractional_habitat_path,
+            elevation,
+            args.crosswalk_path,
+            args.species_data_path,
+            args.output_path,
+            args.weight_paths if args.weight_paths else [],
+            args.force_habitat,
+        )
+    else:
+        aohcalc_binary(
+            args.discrete_habitat_path,
+            elevation,
+            args.crosswalk_path,
+            args.species_data_path,
+            args.output_path,
+            args.weight_paths if args.weight_paths else [],
+            args.force_habitat,
+        )
 
 if __name__ == "__main__":
     main()

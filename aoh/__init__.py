@@ -13,6 +13,8 @@ from pathlib import Path
 import tomli as tomllib
 
 from .cleaning import tidy_data
+from ._internal.aoh_fractional import aohcalc_fractional
+from ._internal.aoh_binary import aohcalc_binary
 
 try:
     from importlib import metadata
