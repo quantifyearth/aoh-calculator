@@ -84,6 +84,13 @@ def make_single_type_map(
             filtered_map = habitat_map == habitat_value
             filtered_map.to_geotiff(filter_map_path, parallelism=max_threads)
 
+            if pixel_scale is not None and target_projection is not None:
+                reprojected_area = filtered_map.area.reproject(
+                    yg.MapProjection(target_projection, pixel_scale, -pixel_scale)
+                )
+            else:
+                reprojected_area = habitat_map.area
+
             with VsimemFile(f"/vsimem/warped_{habitat_value}.tif") as warped_map_path:
                 logger.info("Projecting %s...", habitat_value)
                 gdal.Warp(
@@ -97,6 +104,8 @@ def make_single_type_map(
                         xRes=pixel_scale,
                         yRes=((0.0 - pixel_scale) if pixel_scale is not None else pixel_scale),
                         resampleAlg="average",
+                        outputBounds=(reprojected_area.left, reprojected_area.bottom,
+                            reprojected_area.right, reprojected_area.top),
                         targetAlignedPixels=pixel_scale is not None,
                         warpOptions=[f'NUM_THREADS={max_threads}'],
                         warpMemoryLimit=available_mem,
@@ -107,6 +116,21 @@ def make_single_type_map(
                 logger.info("Saving %s...", habitat_value)
                 filename = f"lcc_{habitat_value}.tif"
                 with yg.read_raster(warped_map_path) as result:
+                    # We had issues whereby original GDAL warp worked okay without needing
+                    # output bounds specified, and then at some point that changed and we were
+                    # losing a lot of the top and bottom of the map. This is a sanity check
+                    # just to ensure that isn't happening.
+                    # The 1% check here is probably overly tolerant, but it's enough to catch the
+                    # errors that caused this check to be added.
+                    reverted = result.area.reproject(habitat_map.map_projection)
+                    original = habitat_map.area
+
+                    if ((abs(original.left - reverted.left) / original.left) > 0.01) or \
+                        ((abs(original.right - reverted.right) / original.right) > 0.01) or \
+                        ((abs(original.top - reverted.top) / original.top) > 0.01) or \
+                        ((abs(original.bottom - reverted.bottom) / original.bottom) > 0.01):
+                        raise ValueError(f"Area of reprojected map significantly different: {original} vs {reverted}")
+
                     result.to_geotiff(output_directory_path / filename)
 
 def habitat_process(
@@ -145,7 +169,7 @@ def main() -> None:
     parser.add_argument(
         "--scale",
         type=float,
-        required=True,
+        required=False,
         dest="pixel_scale",
         help="Optional output pixel scale value, otherwise same as source."
     )
@@ -173,6 +197,11 @@ def main() -> None:
         help="Optional number of concurrent threads to use."
     )
     args = parser.parse_args()
+
+    has_projection = args.target_projection is not None
+    has_scale = args.pixel_scale is not None
+    if has_projection ^ has_scale:
+        parser.error("Specify either both --projection and --scale must be specified or neither")
 
     habitat_process(
         args.habitat_path,
