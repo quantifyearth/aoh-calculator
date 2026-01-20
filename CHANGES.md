@@ -1,3 +1,9 @@
+## v2.0.1 (20/01/2026)
+
+### Fixed
+
+* Fixed broken import on pyproject.toml
+
 ## v2.0.0 (15/01/2026)
 
 ### Changed
