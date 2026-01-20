@@ -3,6 +3,7 @@
 ### Fixed
 
 * Fixed broken import on pyproject.toml
+* Habitat processing regression due to change in GDAL default behaviour.
 
 ## v2.0.0 (15/01/2026)
 
