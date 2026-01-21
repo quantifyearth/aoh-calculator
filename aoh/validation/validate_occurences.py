@@ -1,5 +1,6 @@
 import argparse
 import json
+import math
 import os
 from functools import partial
 from multiprocessing import cpu_count, Pool
@@ -9,6 +10,7 @@ from typing import NamedTuple
 import geopandas as gpd
 import pandas as pd
 import yirgacheffe as yg
+from pyproj import Transformer
 from shapely.geometry import Point
 
 class Record(NamedTuple):
@@ -71,9 +73,30 @@ def process_species(
 
     pixel_set = set()
     with yg.read_raster(aoh_files[0]) as aoh:
+        # The GBIF data is in WGS84, and so we need to map that to a point in the
+        # AOH raster projection space
+        transformer = Transformer.from_crs("EPSG:4326", aoh.map_projection.name)
+
         results = []
         for _, row in clipped_points.iterrows():
-            pixel_x, pixel_y = aoh.pixel_for_latlng(row.decimalLatitude, row.decimalLongitude)
+
+            # Ridley et al: "The distance-weighted, average fractional coverage of AOH surrounding
+            # each species point locality was determined using bilinear interpolation of the four
+            # nearest cells."
+
+            x, y = transformer.transform(row.decimalLongitude, row.decimalLatitude)
+            aligned_x = (x - aoh.area.left) / aoh.map_projection.xstep
+            aligned_y = (y - aoh.area.top) / aoh.map_projection.ystep
+            floored_aligned_x = math.floor(aligned_x)
+            floored_aligned_y = math.floor(aligned_y)
+            if (aligned_x - floored_aligned_x) < 0.5:
+                pixel_x = floored_aligned_x - 1
+            else:
+                pixel_x = floored_aligned_x
+            if (aligned_y - floored_aligned_y) < 0.5:
+                pixel_y = floored_aligned_y - 1
+            else:
+                pixel_y = floored_aligned_y
 
             # Dahal et al: "We also made sure that only one point locality was allowed per pixel of
             # the AOH map to avoid clustering of points."
@@ -81,8 +104,13 @@ def process_species(
                 continue
             pixel_set.add((pixel_x, pixel_y))
 
-            value = aoh.read_array(pixel_x, pixel_y, 1, 1)
-            results.append(value[0][0] > 0.0)
+            rawvalues = aoh.read_array(pixel_x, pixel_y, 2, 2)
+
+            # Technically we should do a bilinear interpolation, but given the
+            # occurrence check is binary, we can just see if there's any non
+            # zero pixels. If we had a threshold higher than zero, then this
+            # isn't sufficient and should be replaced
+            results.append(rawvalues.sum() > 0.0)
 
     # From Dahal et al: "Finally, we excluded species which had fewer than 10 point localities after
     # all the filters were applied."

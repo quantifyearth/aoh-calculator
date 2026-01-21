@@ -112,6 +112,93 @@ def test_simple_match_in_out_range(
         assert result.is_valid == is_valid
         assert result.is_outlier == expected_outlier
 
+@pytest.mark.parametrize("latitude,expected_outlier",[
+    (-6.3, True),
+    (-5.2, True),
+    (-5.1, True),
+    (-5.05, True),
+    (-5.049, False),
+    (-5.0, False),
+    (-4.95, False),
+    (6.3, True),
+    (5.2, True),
+    (5.1, True),
+    (5.051, True),
+    (5.05, False),
+    (5.0, False),
+    (4.95, False),
+
+])
+def test_bilinear_interprolation_lat(
+    latitude: float,
+    expected_outlier: bool,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        aoh_path = tmpdir_path / "42_RESIDENT.tif"
+        generate_faux_aoh(aoh_path)
+
+        # The AOH by default is 100x100 pixels, in 0.1 degree increments from -5.0 to 5.0
+        # on both axis. But due to how the algorithm works, we should actually find pixels
+        # just outside the AOH also return true.
+        occurences = [
+            (42, latitude, -4.0 + (0.2 * i)) for i in range(25)
+        ]
+        df = pd.DataFrame(
+            occurences,
+            columns=['iucn_taxon_id', 'decimalLatitude', 'decimalLongitude']
+        )
+        result = process_species(tmpdir_path, tmpdir_path, df)
+        assert result.iucn_taxon_id == 42
+        assert result.total_records == 25
+        assert result.is_valid is True
+        assert result.is_outlier == expected_outlier
+
+
+@pytest.mark.parametrize("longitude,expected_outlier",[
+    (-6.3, True),
+    (-5.2, True),
+    (-5.1, True),
+    (5.051, True),
+    (-5.05, False),
+    (-5.049, False),
+    (-5.0, False),
+    (-4.95, False),
+    (6.3, True),
+    (5.2, True),
+    (5.1, True),
+    (5.051, True),
+    (5.05, True),
+    (-4.95, False),
+    (5.0, False),
+    (4.95, False),
+
+])
+def test_bilinear_interprolation_lng(
+    longitude: float,
+    expected_outlier: bool,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+        aoh_path = tmpdir_path / "42_RESIDENT.tif"
+        generate_faux_aoh(aoh_path)
+
+        # The AOH by default is 100x100 pixels, in 0.1 degree increments from -5.0 to 5.0
+        # on both axis. But due to how the algorithm works, we should actually find pixels
+        # just outside the AOH also return true.
+        occurences = [
+            (42, -4.0 + (0.2 * i), longitude) for i in range(25)
+        ]
+        df = pd.DataFrame(
+            occurences,
+            columns=['iucn_taxon_id', 'decimalLatitude', 'decimalLongitude']
+        )
+        result = process_species(tmpdir_path, tmpdir_path, df)
+        assert result.iucn_taxon_id == 42
+        assert result.total_records == 25
+        assert result.is_valid is True
+        assert result.is_outlier == expected_outlier
+
 @pytest.mark.parametrize("taxon_id,latitude,longitude,expected_prev,is_valid,expected_outlier",[
     (42, 0.0, 0.0, 1.0, True, False), # all in AoH
     (42, 0.0, 20.0, None, False, None), # all out of range

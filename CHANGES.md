@@ -1,3 +1,9 @@
+## v2.0.2 (21/01/2026)
+
+### Changed
+
+* Use bilinear interpolation on occurrence validation as per IUCN guidelines.
+
 ## v2.0.1 (20/01/2026)
 
 ### Fixed
