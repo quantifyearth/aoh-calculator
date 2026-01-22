@@ -85,38 +85,28 @@ def generate_iucn_to_gbif_map(
     return map_df
 
 def build_gbif_query(id_map: pd.DataFrame) -> Any:
-
     map_with_gbif_id = id_map[id_map.gbif_id.notna()]
-    request_data = map_with_gbif_id[["assessment_year", "gbif_id"]]
 
-    # There should be tens of assessment years vs thousands of species, so we can use that to reduce the query count:
-    grouped = request_data.groupby('assessment_year')['gbif_id'].apply(list)
-
-    queries = [
-        {
-            "type": "and",
-            "predicates": [
-                {
-                    "type": "in",
-                    "key": "TAXON_KEY",
-                    "values": [str(int(gbif_id)) for gbif_id in gbif_ids]
-                },
-                {
-                    "type": "greaterThan",
-                    "key": "YEAR",
-                    "value": str(int(assessment_year)), # type: ignore
-                },
-            ]
-        }
-        for assessment_year, gbif_ids in grouped.items()
-    ]
+    # Get all unique GBIF IDs
+    gbif_ids = [str(int(gbif_id)) for gbif_id in map_with_gbif_id['gbif_id'].unique()]
 
     return {
         "type": "and",
         "predicates": [
             {
-                "type": "or",
-                "predicates": queries
+                "type": "in",
+                "key": "TAXON_KEY",
+                "values": gbif_ids
+            },
+            {
+                "type": "greaterThanOrEquals",
+                "key": "YEAR",
+                "value": "2019"
+            },
+            {
+                "type": "lessThanOrEquals",
+                "key": "YEAR",
+                "value": "2020"
             },
             {
                 "type": "equals",
