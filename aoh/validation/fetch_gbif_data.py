@@ -51,10 +51,10 @@ def generate_iucn_to_gbif_map(
             continue
 
         try:
-            result = pygbif.species.name_backbone(scientific_name, rank='species')
-            if result["matchType"] not in ["EXACT", "FUZZY"]:
+            result = pygbif.species.name_backbone(scientific_name, taxonRank='species')
+            if result["diagnostics"]["matchType"] not in ["EXACT", "FUZZY"]:
                 raise ValueError("no match found")
-            gbif_id = result["speciesKey"]
+            gbif_id = result["usage"]["key"]
 
             id_map[taxon_id] = (taxon_id, scientific_name, assessment_year, int(gbif_id), class_name)
         except (KeyError, ValueError):

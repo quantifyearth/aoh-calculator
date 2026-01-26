@@ -46,7 +46,7 @@ validation = [
     "great_tables",
     "scikit-learn",
     "formulae",
-    "pygbif",
+    "pygbif==0.6.6",
 ]
 dev = [
     "pylint",
