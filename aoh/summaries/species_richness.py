@@ -1,11 +1,9 @@
 import argparse
-import operator
 import os
 import resource
 import sys
 import tempfile
 import time
-from functools import reduce
 from pathlib import Path
 from multiprocessing import Manager, Process, Queue, cpu_count
 
