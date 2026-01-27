@@ -18,26 +18,25 @@ def stage_1_worker(
 ) -> None:
     output_tif = os.path.join(result_dir, filename)
 
-    merged_result = 0
-
     # We will open a lot of files here. Kanske Yirgacheffe should do something
     # here.
     _, max_fd_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
     resource.setrlimit(resource.RLIMIT_NOFILE, (max_fd_limit, max_fd_limit))
 
+    rasters = []
     while True:
         # The expectation is the input is a list of seasonal rasters
         # for the same species (typically just one, not always)
         raster_paths = input_queue.get()
         if raster_paths is None:
             break
+        seasonal_rasters = [yg.read_raster(x) for x in raster_paths]
+        binary_species_layer = yg.any(seasonal_rasters).astype(yg.DataType.UInt32)
+        rasters.append(binary_species_layer)
 
-        rasters = [yg.read_raster(x) for x in raster_paths]
-        binary_species_layer = reduce(operator.or_, [x != 0.0 for x in rasters])
-        merged_result = binary_species_layer + merged_result
-
-    if merged_result:
-        merged_result.to_geotiff(output_tif) # type: ignore
+    if rasters:
+        merged_result = yg.sum(rasters)
+        merged_result.to_geotiff(output_tif)
 
 def stage_2_worker(
     filename: str,
@@ -46,18 +45,17 @@ def stage_2_worker(
 ) -> None:
     output_tif = result_dir / filename
 
-    merged_result = 0
-
+    rasters = []
     while True:
         path = input_queue.get()
         if path is None:
             break
-
         partial_raster = yg.read_raster(path)
-        merged_result = merged_result + partial_raster
+        rasters.append(partial_raster)
 
-    if merged_result:
-        merged_result.to_geotiff(output_tif, nodata=0) # type: ignore
+    if rasters:
+        merged_result = yg.sum(rasters)
+        merged_result.to_geotiff(output_tif, nodata=0)
 
 def species_richness(
     aohs_dir: Path,
@@ -111,7 +109,9 @@ def species_richness(
                 source_queue
             ))
             single_worker.start()
-            nextfiles = Path(tempdir).rglob('*.tif')
+            nextfiles = list(Path(tempdir).rglob('*.tif'))
+            if not nextfiles:
+                sys.exit("Failed to find intermediary files, aborting!")
             for file in nextfiles:
                 source_queue.put(file)
             source_queue.put(None)
@@ -148,7 +148,7 @@ def main() -> None:
         "-j",
         type=int,
         required=False,
-        default=round(cpu_count() / 2),
+        default=cpu_count() // 2,
         dest="processes_count",
         help="Number of concurrent threads to use."
     )
