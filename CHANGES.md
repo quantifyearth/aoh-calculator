@@ -1,7 +1,14 @@
-## v2.0.2 (21/01/2026)
+## v2.0.2 (27/01/2026)
+
+### Fixed
+
+* Fixed incompatibly with newer pygbif and pinned version to avoid future issues.
+* Fixed issue with species richness calculation exceeding max stack size when many species and few CPU cores.
+* Simplify import structure so that the R packages are only imported for model validation.
 
 ### Changed
 
+* Match the time range for occurrence data to match Dahal et al (2019-2020). We should do better, but this package should for now stick to the peer-reviewed method as its baseline.
 * Use bilinear interpolation on occurrence validation as per IUCN guidelines.
 
 ## v2.0.1 (20/01/2026)
