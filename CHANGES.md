@@ -1,3 +1,9 @@
+## v2.0.3 (28/01/2026)
+
+### Added
+
+* Added `--version` flag to command line tools.
+
 ## v2.0.2 (27/01/2026)
 
 ### Fixed

@@ -7,6 +7,7 @@ import os
 import sys
 import tempfile
 import time
+from importlib.metadata import version
 from pathlib import Path
 from multiprocessing import Manager, Process, Queue, cpu_count
 from typing import Dict, Optional, Set
@@ -213,7 +214,12 @@ def endemism(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Calculate species richness")
+    parser = argparse.ArgumentParser(description="Calculate species endemism")
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'%(prog)s {version("aoh")}'
+    )
     parser.add_argument(
         "--aohs_folder",
         type=Path,

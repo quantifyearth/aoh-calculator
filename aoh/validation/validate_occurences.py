@@ -3,6 +3,7 @@ import json
 import math
 import os
 from functools import partial
+from importlib.metadata import version
 from multiprocessing import cpu_count, Pool
 from pathlib import Path
 from typing import NamedTuple
@@ -190,6 +191,11 @@ def validate_occurrences(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Validate occurrence prevelance.")
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'%(prog)s {version("aoh")}'
+    )
     parser.add_argument(
         '--gbif_data_path',
         type=Path,
