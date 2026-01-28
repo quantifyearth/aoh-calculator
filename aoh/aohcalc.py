@@ -1,5 +1,6 @@
 import argparse
 import logging
+from importlib.metadata import version
 from pathlib import Path
 
 from ._internal import aohcalc_fractional, aohcalc_binary
@@ -9,6 +10,11 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(me
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Area of habitat calculator.")
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'%(prog)s {version("aoh")}'
+    )
 
     # land cover/habitat map arguments - either single raster for binary or directory for many
     parser.add_argument(

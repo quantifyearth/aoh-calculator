@@ -2,6 +2,7 @@ import argparse
 import json
 import os
 import sys
+from importlib.metadata import version
 from pathlib import Path
 
 import pandas as pd
@@ -58,7 +59,12 @@ def collate_data(
     df.to_csv(output_path, index=False)
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Collate metadata from AoH build.")
+    parser = argparse.ArgumentParser(description="Collate metadata from AOH build.")
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'%(prog)s {version("aoh")}'
+    )
     parser.add_argument(
         '--aoh_results',
         type=Path,

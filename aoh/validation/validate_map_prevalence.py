@@ -2,6 +2,7 @@
 # Based on R code authored by Franchesca Ridley.
 
 import argparse
+from importlib.metadata import version
 from pathlib import Path
 from typing import cast
 
@@ -194,6 +195,11 @@ def validate_map_prevalence(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Validate map prevalence.")
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'%(prog)s {version("aoh")}'
+    )
     parser.add_argument(
         '--collated_aoh_data',
         type=Path,

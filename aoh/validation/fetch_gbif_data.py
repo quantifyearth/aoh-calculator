@@ -3,6 +3,7 @@ import os
 import sys
 import time
 import zipfile
+from importlib.metadata import version
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 
@@ -248,6 +249,11 @@ Environment Variables:
     GBIF_PASSWORD   Password of user's GBIF account.
             ''',
         formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'%(prog)s {version("aoh")}'
     )
     parser.add_argument(
         '--collated_aoh_data',

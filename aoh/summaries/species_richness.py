@@ -4,8 +4,9 @@ import resource
 import sys
 import tempfile
 import time
-from pathlib import Path
+from importlib.metadata import version
 from multiprocessing import Manager, Process, Queue, cpu_count
+from pathlib import Path
 
 import yirgacheffe as yg
 
@@ -128,6 +129,11 @@ def species_richness(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Calculate species richness")
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'%(prog)s {version("aoh")}'
+    )
     parser.add_argument(
         "--aohs_folder",
         type=Path,

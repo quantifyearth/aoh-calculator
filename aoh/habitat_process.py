@@ -2,6 +2,7 @@ import argparse
 import os
 import logging
 from functools import partial
+from importlib.metadata import version
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
 from typing import Optional, Set
@@ -159,6 +160,11 @@ def habitat_process(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Downsample habitat map to raster per terrain type.")
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'%(prog)s {version("aoh")}'
+    )
     parser.add_argument(
         '--habitat',
         type=Path,
