@@ -46,7 +46,7 @@ def collate_data(
             all_keys |= set(data.keys())
     assert set(COLUMNS).issubset(all_keys)
 
-    keys = COLUMNS + list(all_keys - set(COLUMNS))
+    keys = COLUMNS + sorted(list(all_keys - set(COLUMNS)))
     for manifest in manifests:
         with open(manifest, encoding="utf-8") as f:
             data = json.load(f)
