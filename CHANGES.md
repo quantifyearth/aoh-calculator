@@ -1,3 +1,9 @@
+## v2.0.4 (30/01/2026)
+
+### Changed
+
+* Stabilised the order of columns in the collated AOH statistics CSV to make it easier to compare runs.
+
 ## v2.0.3 (28/01/2026)
 
 ### Added
