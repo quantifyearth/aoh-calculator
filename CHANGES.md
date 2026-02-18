@@ -1,3 +1,9 @@
+## v2.0.5 (18/02/2026)
+
+### Added
+
+* Added a flag to both library and command line tools that will automatically scale output to be in metres squared based on geospatial area for the map projection and pixel scale used.
+
 ## v2.0.4 (30/01/2026)
 
 ### Changed

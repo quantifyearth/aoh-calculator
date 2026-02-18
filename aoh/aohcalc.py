@@ -65,6 +65,12 @@ def main() -> None:
         dest="weight_paths",
     )
     parser.add_argument(
+        '--area',
+        help="If set, multiply each pixel by its area in metres squared.",
+        dest="multiply_by_area_per_pixel",
+        action='store_true',
+    )
+    parser.add_argument(
         '--crosswalk',
         type=str,
         help="Path of habitat crosswalk table.",
@@ -124,6 +130,7 @@ def main() -> None:
             args.output_path,
             args.weight_paths if args.weight_paths else [],
             args.force_habitat,
+            args.multiply_by_area_per_pixel,
         )
     else:
         aohcalc_binary(
@@ -134,6 +141,7 @@ def main() -> None:
             args.output_path,
             args.weight_paths if args.weight_paths else [],
             args.force_habitat,
+            args.multiply_by_area_per_pixel,
         )
 
 if __name__ == "__main__":

@@ -57,13 +57,13 @@ def generate_flat_elevation_map(
     band.WriteArray(data, 0, 0)
     dataset.Close()
 
-def generate_area_map(
+def generate_constant_map(
     output_path: Path,
     dimensions: tuple[int, int],
-    area_value: float,
+    value: float,
 ) -> None:
     width, height = dimensions
-    data = np.full((height, width), area_value)
+    data = np.full((height, width), value)
     dataset = gdal.GetDriverByName("GTiff").Create(
         output_path,
         width,
@@ -253,7 +253,7 @@ def test_no_habitat_aoh(force_habitat) -> None:
             assert manifest["prevalence"] == 1
 
 @pytest.mark.parametrize("force_habitat", [True, False])
-def test_simple_aoh_area(force_habitat) -> None:
+def test_simple_aoh_weights(force_habitat) -> None:
     dims = (200, 200)
     with tempfile.TemporaryDirectory() as tempdir:
         tmp = Path(tempdir)
@@ -286,7 +286,7 @@ def test_simple_aoh_area(force_habitat) -> None:
 
         area_path = tmp / "area.tif"
         pixel_area = 4200000.0
-        generate_area_map(area_path, dims, pixel_area)
+        generate_constant_map(area_path, dims, pixel_area)
 
         output_dir = tmp / "results"
         aohcalc_fractional(
@@ -532,3 +532,154 @@ def test_no_elevation_aoh(force_habitat) -> None:
         assert manifest["hab_total"] == 30
         assert manifest["aoh_total"] == 30
         assert manifest["prevalence"] == 0.5
+
+
+def test_simple_aoh_area() -> None:
+    dims = (200, 200)
+    with tempfile.TemporaryDirectory() as tempdir:
+        tmp = Path(tempdir)
+
+        habitats_path = tmp / "habitats"
+        os.makedirs(habitats_path, exist_ok=True)
+        generate_habitat_maps(
+            habitats_path,
+            dims,
+            {100, 200},
+        )
+
+        min_elevation_path = tmp / "elevation_min.tif"
+        generate_flat_elevation_map(min_elevation_path, dims, -200)
+        max_elevation_path = tmp / "elevation_max.tif"
+        generate_flat_elevation_map(max_elevation_path, dims, 1000)
+
+        crosswalk = {
+            "1.0": {100, 101, 102},
+            "1.1": {100, 101},
+            "1.2": {100, 102},
+            "2.0": {200, 201},
+            "2.1": {200, 201},
+        }
+        crosswalk_path = tmp / "crosswalk.csv"
+        generate_crosswalk(crosswalk_path, crosswalk)
+
+        species_data_path = tmp / "species.geojson"
+        generate_species_info(species_data_path, (100, 200), {"1.1"})
+
+        output_dir_without_area = tmp / "results_without_area"
+        aohcalc_fractional(
+            habitats_path,
+            (min_elevation_path, max_elevation_path),
+            crosswalk_path,
+            species_data_path,
+            output_dir_without_area,
+        )
+
+        output_dir_with_area = tmp / "results_with_area"
+        aohcalc_fractional(
+            habitats_path,
+            (min_elevation_path, max_elevation_path),
+            crosswalk_path,
+            species_data_path,
+            output_dir_with_area,
+            multiply_by_area_per_pixel=True,
+        )
+
+        # This is a little circular, but it at least checks the flag works
+        expected_area = yg.area_raster(("WGS84", (360/200, -180/200)))
+
+        with (
+            yg.read_raster(output_dir_without_area / "1234_1.tif") as aoh_sans_area,
+            yg.read_raster(output_dir_with_area / "1234_1.tif") as aoh_with_area,
+        ):
+            with open(output_dir_without_area / "1234_1.json", "r", encoding="UTF-8") as f:
+                sans_area_manifest = json.load(f)
+            with open(output_dir_with_area / "1234_1.json", "r", encoding="UTF-8") as f:
+                with_area_manifest = json.load(f)
+
+            # Check calculated values. All habitat layers for this
+            # test are 50%
+            expected_sans_area_total = dims[0] * dims[1] * 0.25 * 0.5
+            assert aoh_sans_area.sum() == expected_sans_area_total
+
+            assert aoh_sans_area.sum() < aoh_with_area.sum()
+            manual_version_total = (aoh_sans_area * expected_area).sum()
+            auto_version_total = aoh_with_area.sum()
+            assert auto_version_total == manual_version_total
+
+            assert sans_area_manifest["aoh_total"] == aoh_sans_area.sum()
+            assert sans_area_manifest["prevalence"] == 0.5
+            assert with_area_manifest["aoh_total"] == aoh_with_area.sum()
+            assert with_area_manifest["prevalence"] == 0.5 # over small area this should still hold
+
+
+def test_simple_aoh_area_and_weights() -> None:
+    dims = (200, 200)
+    with tempfile.TemporaryDirectory() as tempdir:
+        tmp = Path(tempdir)
+
+        habitats_path = tmp / "habitats"
+        os.makedirs(habitats_path, exist_ok=True)
+        generate_habitat_maps(
+            habitats_path,
+            dims,
+            {100, 200},
+        )
+
+        min_elevation_path = tmp / "elevation_min.tif"
+        generate_flat_elevation_map(min_elevation_path, dims, -200)
+        max_elevation_path = tmp / "elevation_max.tif"
+        generate_flat_elevation_map(max_elevation_path, dims, 1000)
+
+        crosswalk = {
+            "1.0": {100, 101, 102},
+            "1.1": {100, 101},
+            "1.2": {100, 102},
+            "2.0": {200, 201},
+            "2.1": {200, 201},
+        }
+        crosswalk_path = tmp / "crosswalk.csv"
+        generate_crosswalk(crosswalk_path, crosswalk)
+
+        species_data_path = tmp / "species.geojson"
+        generate_species_info(species_data_path, (100, 200), {"1.1"})
+
+        output_dir_without_area = tmp / "results_without_area"
+        aohcalc_fractional(
+            habitats_path,
+            (min_elevation_path, max_elevation_path),
+            crosswalk_path,
+            species_data_path,
+            output_dir_without_area,
+        )
+
+
+        const_path = tmp / "const.tif"
+        generate_constant_map(const_path, dims, 2.0)
+
+        output_dir_with_area = tmp / "results_with_area"
+        aohcalc_fractional(
+            habitats_path,
+            (min_elevation_path, max_elevation_path),
+            crosswalk_path,
+            species_data_path,
+            output_dir_with_area,
+            weight_layer_paths=[const_path],
+            multiply_by_area_per_pixel=True,
+        )
+
+        # This is a little circular, but it at least checks the flag works
+        expected_area = yg.area_raster(("WGS84", (360/200, -180/200)))
+
+        with (
+            yg.read_raster(output_dir_without_area / "1234_1.tif") as aoh_sans_area,
+            yg.read_raster(output_dir_with_area / "1234_1.tif") as aoh_with_area,
+        ):
+            with open(output_dir_with_area / "1234_1.json", "r", encoding="UTF-8") as f:
+                with_area_manifest = json.load(f)
+
+            manual_version_total = (aoh_sans_area * expected_area * 2).sum()
+            auto_version_total = aoh_with_area.sum()
+            assert auto_version_total == manual_version_total
+
+            assert with_area_manifest["aoh_total"] == manual_version_total.sum()
+            assert with_area_manifest["prevalence"] == 0.5 # over small area this should still hold

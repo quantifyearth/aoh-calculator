@@ -19,6 +19,7 @@ def aohcalc_binary(
     output_directory_path: Path | str,
     weight_layer_paths: list[Path] | list[str] | None = None,
     force_habitat: bool=False,
+    multiply_by_area_per_pixel: bool=False,
 ) -> None:
     """Calculate as Area of Habitat using classified/discrete habitat data.
 
@@ -64,6 +65,9 @@ def aohcalc_binary(
         force_habitat: If True, do not revert to range when habitat filtering
             yields zero area. Useful for land-use change scenarios where habitat
             loss should result in zero AOH.
+        multiply_by_area_per_pixel: If True, for each pixel multiply its value by
+            the area of that pixel in metres squared based on the map projection
+            and pixel scale.
 
     Returns:
         None. Outputs are written to files in output_directory_path.
@@ -150,15 +154,20 @@ def aohcalc_binary(
     else:
         raise ValueError("Elevation path should be single raster or tuple of min/max raster paths.")
 
+    projection = min_elevation_map.map_projection
+    assert projection is not None
+    area_per_pixel = yg.area_raster(projection) if multiply_by_area_per_pixel else 1.0
+
     range_map = yg.read_shape_like(
         species_data_path,
         min_elevation_map,
         datatype=yg.DataType.Float32,
     )
 
-    weights_map : float | yg.YirgacheffeLayer = 1.0
+    # We can treat the area_per_pixel value as a built in weight
+    weights_map : float | yg.YirgacheffeLayer = area_per_pixel
     if weight_layer_paths is not None and weight_layer_paths:
-        rasters = []
+        rasters = [area_per_pixel]
         for p in weight_layer_paths:
             try:
                 raster = yg.read_narrow_raster(p)
