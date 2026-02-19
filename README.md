@@ -8,6 +8,8 @@ An AOH raster combines data on species range, habitat preferences and elevation 
 
 This package provides two implementations of the AOH method: a binary method and a fractional, or proportional, method. The binary method takes a single land cover or habitat map where each pixel is encoded to a particular land cover or habitat class (e.g., the [Copernicus Land Cover map](https://land.copernicus.eu/en/products/global-dynamic-land-cover) or the [Jung habitat map](https://zenodo.org/records/4058819)). The fractional method takes in a set of rasters, one per class, with each pixel being some proportional value. In this approach if a species has multiple habitat preferences and their maps overlap the resulting value in the AOH map will be a summation of those values.
 
+By default the package generates a binary or fractional coverage per pixel, depending on your input layers, but if you provide the `pixel-area` option then it will covert the results into metres squared per pixel, calculating the area per pixel based on the map projection and pixel scale of the other rasters.
+
 ## Installation
 
 The AOH Calculator is available as a Python package and can be installed via pip:
@@ -84,9 +86,9 @@ A CSV file mapping IUCN habitat codes to raster values with two columns:
 
 ### Optional: Weight Layers
 
-GeoTIFF rasters for area correction or masking:
-- **Pixel area raster**: Converts pixel values to actual area (essential for geographic coordinate systems like WGS84)
+GeoTIFF rasters for scaling or masking:
 - **Mask raster**: Binary raster to clip results to specific regions (e.g., land areas only)
+- **Custom pixel area raster**: There is a built in feature to scale by geometric area per pixel, but if that does not suit your needs you can use your own area-per-pixel raster here.
 
 ### Technical Requirements
 
@@ -112,7 +114,8 @@ aohcalc_binary(
     species_data_path="species_123.geojson",
     output_directory_path="results/",
     weight_layer_paths=["pixel_areas.tif"],  # optional
-    force_habitat=False  # optional
+    force_habitat=False,  # optional
+    multiply_by_area_per_pixel=False,  # optional
 )
 
 # Fractional method - for proportional habitat coverage
@@ -123,7 +126,8 @@ aohcalc_fractional(
     species_data_path="species_123.geojson",
     output_directory_path="results/",
     weight_layer_paths=["pixel_areas.tif"],  # optional
-    force_habitat=False  # optional
+    force_habitat=False,  # optional
+    multiply_by_area_per_pixel=False,  # optional
 )
 
 # Other utilities
@@ -170,6 +174,9 @@ options:
                         Optional weight layer raster(s) to multiply with result.
                         Can specify multiple times. Common uses: pixel area
                         correction, spatial masking.
+  --pixel-area
+                        If set, multiply each pixel by its area in metres squared based
+                        on map projection and pixel scale of other input rasters.
   --crosswalk CROSSWALK_PATH
                         Path of habitat crosswalk table.
   --speciesdata SPECIES_DATA_PATH
@@ -194,17 +201,9 @@ options:
 Weight layers are rasters that are multiplied with the AOH result. You can specify `--weights` multiple times to apply multiple layers, which will be multiplied together.
 
 Common use cases:
-- **Pixel area correction**: Essential for geographic coordinate systems (WGS84) to convert pixel counts to actual area
-  ```bash
-  --weights pixel_areas.tif
-  ```
 - **Spatial masking**: Clip results to specific regions (e.g., land areas only)
   ```bash
   --weights land_mask.tif
-  ```
-- **Combined**: Apply both area correction and masking
-  ```bash
-  --weights pixel_areas.tif --weights land_mask.tif
   ```
 
 **Output:**
