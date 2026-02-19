@@ -65,8 +65,9 @@ def main() -> None:
         dest="weight_paths",
     )
     parser.add_argument(
-        '--area',
-        help="If set, multiply each pixel by its area in metres squared.",
+        '--pixel-area',
+        help="If set, multiply each pixel by its area in metres squared based on map projection and pixel " \
+            "scale of other input rasters.",
         dest="multiply_by_area_per_pixel",
         action='store_true',
     )
