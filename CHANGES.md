@@ -1,3 +1,9 @@
+## v2.1.0 (09/03/2026)
+
+### Changed
+
+* Change the output filename format to match those used in other IUCN processes.
+
 ## v2.0.5 (18/02/2026)
 
 ### Added

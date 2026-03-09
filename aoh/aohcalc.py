@@ -94,7 +94,7 @@ def main() -> None:
     parser.add_argument(
         '--output',
         type=Path,
-        help='Directory where area geotiffs should be stored.',
+        help='Directory where area geotiff and metadata should be stored.',
         required=True,
         dest='output_path',
     )

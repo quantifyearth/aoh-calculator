@@ -45,11 +45,21 @@ class SpeciesInfo:
 
     @property
     def species_id(self) -> int:
-        return self.species_info.id_no.values[0]
+        return int(self.species_info.id_no.values[0])
 
     @property
-    def season(self) -> str:
-        return self.species_info.season.values[0]
+    def assessment_id(self) -> int | None:
+        try:
+            return int(self.species_info.assessment_id.values[0])
+        except AttributeError:
+            return None
+
+    @property
+    def season(self) -> str | None:
+        try:
+            return self.species_info.season.values[0]
+        except AttributeError:
+            return None
 
     @property
     def elevation_lower(self) -> int:
@@ -75,27 +85,23 @@ class SpeciesInfo:
             self.manifest["error"] = "Species data missing or corrupt habitat data"
             raise ValueError(self.manifest["error"]) from exc
 
-    def filenames(self, output_directory_path:Path) -> tuple[Path,Path]:
-        species_id = self.species_id
-        try:
-            seasonality = self.season
-            result_filename = output_directory_path / f"{species_id}_{seasonality}.tif"
-            manifest_filename = output_directory_path / f"{species_id}_{seasonality}.json"
-        except AttributeError:
-            seasonality = None
-            result_filename = output_directory_path / f"{species_id}.tif"
-            manifest_filename = output_directory_path / f"{species_id}.json"
+    def filenames(self, output_directory_path: Path) -> tuple[Path,Path]:
+        species_id_part = f"T{self.species_id}"
+        assessment_id = self.assessment_id
+        assessment_id_part = f"A{assessment_id}" if assessment_id is not None else ""
+
+        season = self.season
+        seasonality_part = f"_{season}" if season is not None else ""
+
+        stem = f"aoh_{species_id_part}{assessment_id_part}{seasonality_part}"
+
+        result_filename = output_directory_path / f"{stem}.tif"
+        manifest_filename = output_directory_path / f"{stem}.json"
 
         return result_filename, manifest_filename
 
     def save_manifest(self, output_directory_path:Path, error_message: str | None = None) -> None:
-        species_id = self.species_id
-        try:
-            seasonality = self.season
-            manifest_filename = output_directory_path / f"{species_id}_{seasonality}.json"
-        except AttributeError:
-            manifest_filename = output_directory_path / f"{species_id}.json"
-
+        _, manifest_filename = self.filenames(output_directory_path)
         if error_message is not None:
             self.manifest["error"] = error_message
 
