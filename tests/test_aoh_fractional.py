@@ -96,6 +96,7 @@ def generate_species_info(
 ) -> None:
     properties = {
         "id_no": "1234",
+        "assessment_id": "789",
         "season": "1",
         "elevation_lower": float(elevation_range[0]),
         "elevation_upper": float(elevation_range[1]),
@@ -156,9 +157,9 @@ def test_simple_aoh(force_habitat) -> None:
             force_habitat=force_habitat,
         )
 
-        expected_geotiff_path = output_dir / "1234_1.tif"
+        expected_geotiff_path = output_dir / "aoh_T1234A789_1.tif"
         assert expected_geotiff_path.exists()
-        expected_manifest_path = output_dir / "1234_1.json"
+        expected_manifest_path = output_dir / "aoh_T1234A789_1.json"
         assert expected_manifest_path.exists()
 
         with open(expected_manifest_path, "r", encoding="UTF-8") as f:
@@ -227,9 +228,9 @@ def test_no_habitat_aoh(force_habitat) -> None:
             force_habitat=force_habitat,
         )
 
-        expected_geotiff_path = output_dir / "1234_1.tif"
+        expected_geotiff_path = output_dir / "aoh_T1234A789_1.tif"
         assert expected_geotiff_path.exists() == (not force_habitat)
-        expected_manifest_path = output_dir / "1234_1.json"
+        expected_manifest_path = output_dir / "aoh_T1234A789_1.json"
         assert expected_manifest_path.exists()
 
         with open(expected_manifest_path, "r", encoding="UTF-8") as f:
@@ -299,9 +300,9 @@ def test_simple_aoh_weights(force_habitat) -> None:
             force_habitat=force_habitat,
         )
 
-        expected_geotiff_path = output_dir / "1234_1.tif"
+        expected_geotiff_path = output_dir / "aoh_T1234A789_1.tif"
         assert expected_geotiff_path.exists()
-        expected_manifest_path = output_dir / "1234_1.json"
+        expected_manifest_path = output_dir / "aoh_T1234A789_1.json"
         assert expected_manifest_path.exists()
 
         with open(expected_manifest_path, "r", encoding="UTF-8") as f:
@@ -372,9 +373,9 @@ def test_simple_aoh_multiple_habitats(force_habitat) -> None:
             force_habitat=force_habitat,
         )
 
-        expected_geotiff_path = output_dir / "1234_1.tif"
+        expected_geotiff_path = output_dir / "aoh_T1234A789_1.tif"
         assert expected_geotiff_path.exists()
-        expected_manifest_path = output_dir / "1234_1.json"
+        expected_manifest_path = output_dir / "aoh_T1234A789_1.json"
         assert expected_manifest_path.exists()
 
         with open(expected_manifest_path, "r", encoding="UTF-8") as f:
@@ -445,9 +446,9 @@ def test_no_overlapping_habitats(force_habitat) -> None:
             force_habitat=force_habitat,
         )
 
-        expected_geotiff_path = output_dir / "1234_1.tif"
+        expected_geotiff_path = output_dir / "aoh_T1234A789_1.tif"
         assert expected_geotiff_path.exists() == (not force_habitat)
-        expected_manifest_path = output_dir / "1234_1.json"
+        expected_manifest_path = output_dir / "aoh_T1234A789_1.json"
         assert expected_manifest_path.exists()
 
         with open(expected_manifest_path, "r", encoding="UTF-8") as f:
@@ -511,9 +512,9 @@ def test_no_elevation_aoh(force_habitat) -> None:
             force_habitat=force_habitat,
         )
 
-        expected_geotiff_path = output_dir / "1234_1.tif"
+        expected_geotiff_path = output_dir / "aoh_T1234A789_1.tif"
         assert expected_geotiff_path.exists()
-        expected_manifest_path = output_dir / "1234_1.json"
+        expected_manifest_path = output_dir / "aoh_T1234A789_1.json"
         assert expected_manifest_path.exists()
 
         with open(expected_manifest_path, "r", encoding="UTF-8") as f:
@@ -588,12 +589,12 @@ def test_simple_aoh_area() -> None:
         expected_area = yg.area_raster(("WGS84", (360/200, -180/200)))
 
         with (
-            yg.read_raster(output_dir_without_area / "1234_1.tif") as aoh_sans_area,
-            yg.read_raster(output_dir_with_area / "1234_1.tif") as aoh_with_area,
+            yg.read_raster(output_dir_without_area / "aoh_T1234A789_1.tif") as aoh_sans_area,
+            yg.read_raster(output_dir_with_area / "aoh_T1234A789_1.tif") as aoh_with_area,
         ):
-            with open(output_dir_without_area / "1234_1.json", "r", encoding="UTF-8") as f:
+            with open(output_dir_without_area / "aoh_T1234A789_1.json", "r", encoding="UTF-8") as f:
                 sans_area_manifest = json.load(f)
-            with open(output_dir_with_area / "1234_1.json", "r", encoding="UTF-8") as f:
+            with open(output_dir_with_area / "aoh_T1234A789_1.json", "r", encoding="UTF-8") as f:
                 with_area_manifest = json.load(f)
 
             # Check calculated values. All habitat layers for this
@@ -671,10 +672,10 @@ def test_simple_aoh_area_and_weights() -> None:
         expected_area = yg.area_raster(("WGS84", (360/200, -180/200)))
 
         with (
-            yg.read_raster(output_dir_without_area / "1234_1.tif") as aoh_sans_area,
-            yg.read_raster(output_dir_with_area / "1234_1.tif") as aoh_with_area,
+            yg.read_raster(output_dir_without_area / "aoh_T1234A789_1.tif") as aoh_sans_area,
+            yg.read_raster(output_dir_with_area / "aoh_T1234A789_1.tif") as aoh_with_area,
         ):
-            with open(output_dir_with_area / "1234_1.json", "r", encoding="UTF-8") as f:
+            with open(output_dir_with_area / "aoh_T1234A789_1.json", "r", encoding="UTF-8") as f:
                 with_area_manifest = json.load(f)
 
             manual_version_total = (aoh_sans_area * expected_area * 2).sum()
