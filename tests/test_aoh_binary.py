@@ -519,7 +519,6 @@ def test_no_elevation_aoh(force_habitat) -> None:
         assert manifest["full_habitat_code"] == "1.1"
 
         # The default IUCN behaviour is to revert to range if no elevation
-        print(manifest)
         assert manifest["range_total"] == 60
         assert manifest["dem_total"] == 0
         assert manifest["hab_total"] == 20

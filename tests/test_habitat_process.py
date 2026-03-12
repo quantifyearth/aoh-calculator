@@ -90,8 +90,6 @@ def test_rescale_make_single_map() -> None:
 
         with  yg.read_raster(habitat_path) as original:
             with yg.read_raster(expected_result_path) as result:
-                print(result.window)
-                print(result.area)
                 assert result.window.xsize == original.window.xsize / 2
                 assert result.window.ysize == original.window.ysize / 2
                 original_data = original.read_array(0, 0, original.window.xsize, original.window.ysize)
