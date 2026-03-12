@@ -4,6 +4,10 @@
 
 * Change the output filename format to match those used in other IUCN processes.
 
+### Fixed
+
+* Occurrence validation only handled range polygons in WGS84, now fixed.
+
 ## v2.0.5 (18/02/2026)
 
 ### Added

@@ -115,7 +115,5 @@ def test_simple_summary_gaps() -> None:
                 [0, 1, 0, 1],
             ]).astype(float)
             expected[expected==0] = np.nan
-            print(expected)
             result_data = result.read_array(0, 0, 4, 4)
-            print(result_data)
             assert np.allclose(result_data, expected, equal_nan=True)
