@@ -25,7 +25,7 @@ def generate_occurrence_cluster(
         res.append((latitude + y, longitude + x))
     return res
 
-def geojson_of_shaps(shapes):
+def geojson_of_shapes(shapes, projection: str = "epsg:4326"):
     features = []
     for geom in shapes:
         feature = {
@@ -37,11 +37,18 @@ def geojson_of_shaps(shapes):
 
     geojson = {
         "type": "FeatureCollection",
+        "crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:" + ("::".join(projection.split(":"))) } },
         "features": features
     }
     return geojson
 
-def generate_faux_aoh(filename: Path, aoh_radius:float=5.0, range_radius:float=10.0) -> None:
+def generate_faux_aoh(
+    filename: Path,
+    aoh_radius: float=5.0,
+    range_radius: float=10.0,
+    projection: str="epsg:4326",
+    pixel_scale: float=0.1,
+) -> None:
     aoh_shapes = [
         Polygon([
             (-aoh_radius, aoh_radius),
@@ -64,19 +71,19 @@ def generate_faux_aoh(filename: Path, aoh_radius:float=5.0, range_radius:float=1
 
     assert aoh_area <= range_area
 
-    geojson_path = filename.with_suffix('.geojson')
+    geojson_path = filename.parent / f"range_{filename.stem[4:]}.geojson"
     with open(geojson_path, 'w', encoding="UTF-8") as f:
-        json.dump(geojson_of_shaps(range_shapes), f, indent=2)
+        json.dump(geojson_of_shapes(range_shapes, projection), f, indent=2)
 
     json_path = filename.with_suffix('.json')
     with open(json_path, 'w', encoding='utf-8') as f:
         json.dump({'prevalence': aoh_area / range_area}, f)
 
     with tempfile.TemporaryDirectory() as tmpdir:
-        aoh_geojson = Path(tmpdir) / "test.geojson"
+        aoh_geojson = Path(tmpdir) / f"aoh_{filename.stem[4:]}.geojson"
         with open(aoh_geojson, 'w', encoding="UTF-8") as f:
-            json.dump(geojson_of_shaps(aoh_shapes), f, indent=2)
-        with yg.read_shape(aoh_geojson, ("epsg:4326", (0.1, -0.1))) as shape_layer:
+            json.dump(geojson_of_shapes(aoh_shapes, projection), f, indent=2)
+        with yg.read_shape(aoh_geojson, (projection, (pixel_scale, -pixel_scale))) as shape_layer:
             shape_layer.to_geotiff(filename)
 
 @pytest.mark.parametrize("taxon_id,latitude,longitude,is_valid,expected_outlier",[
@@ -98,7 +105,7 @@ def test_simple_match_in_out_range(
         tmpdir_path = Path(tmpdir)
 
         for test_id in [41, 42, 43]:
-            aoh_path = tmpdir_path / f"{test_id}_RESIDENT.tif"
+            aoh_path = tmpdir_path / f"aoh_T{test_id}A1_RESIDENT.tif"
             generate_faux_aoh(aoh_path)
 
         occurences = generate_occurrence_cluster(latitude, longitude, 20, 2.0)
@@ -135,7 +142,7 @@ def test_bilinear_interprolation_lat(
 ) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir_path = Path(tmpdir)
-        aoh_path = tmpdir_path / "42_RESIDENT.tif"
+        aoh_path = tmpdir_path / "aoh_T42A1_RESIDENT.tif"
         generate_faux_aoh(aoh_path)
 
         # The AOH by default is 100x100 pixels, in 0.1 degree increments from -5.0 to 5.0
@@ -180,7 +187,7 @@ def test_bilinear_interprolation_lng(
 ) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         tmpdir_path = Path(tmpdir)
-        aoh_path = tmpdir_path / "42_RESIDENT.tif"
+        aoh_path = tmpdir_path / "aoh_T42A1_RESIDENT.tif"
         generate_faux_aoh(aoh_path)
 
         # The AOH by default is 100x100 pixels, in 0.1 degree increments from -5.0 to 5.0
@@ -215,7 +222,7 @@ def test_occurrence_prevalence_of_one(
         tmpdir_path = Path(tmpdir)
 
         for test_id in [41, 42, 43]:
-            aoh_path = tmpdir_path / f"{test_id}_RESIDENT.tif"
+            aoh_path = tmpdir_path / f"aoh_T{test_id}A1_RESIDENT.tif"
             generate_faux_aoh(aoh_path, aoh_radius=5.0, range_radius=5.0)
 
         occurences = generate_occurrence_cluster(latitude, longitude, 20, 2.0)
@@ -237,7 +244,7 @@ def test_no_aoh_found() -> None:
         tmpdir_path = Path(tmpdir)
 
         for test_id in [41, 42, 43]:
-            aoh_path = tmpdir_path / f"{test_id}_RESIDENT.tif"
+            aoh_path = tmpdir_path / f"aoh_T{test_id}A1_RESIDENT.tif"
             generate_faux_aoh(aoh_path)
 
         df = pd.DataFrame(
@@ -265,7 +272,7 @@ def test_find_seasonal() -> None:
         tmpdir_path = Path(tmpdir)
 
         for season in ['breeding', 'nonbreeding']:
-            aoh_path = tmpdir_path / f"42_{season}.tif"
+            aoh_path = tmpdir_path / f"aoh_T42A1a_{season}.tif"
             generate_faux_aoh(aoh_path)
 
         df = pd.DataFrame(
@@ -280,3 +287,44 @@ def test_empty_species_list() -> None:
     df = pd.DataFrame([], columns=['iucn_taxon_id', 'decimalLatitude', 'decimalLongitude'])
     with pytest.raises(ValueError):
         _ = process_species(Path("/some/aohs"), Path("/some/aohs"), df)
+
+@pytest.mark.parametrize("taxon_id,latitude,longitude,expected_prev,is_valid,expected_outlier",[
+    (42, 0.0, 0.0, 1.0, True, False), # all in AoH
+    (42, 0.0, 20.0, None, False, None), # all out of range
+])
+def test_aoh_not_in_wgs84(
+    taxon_id: int,
+    latitude: float,
+    longitude: float,
+    expected_prev: float,
+    is_valid: bool,
+    expected_outlier: bool,
+) -> None:
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmpdir_path = Path(tmpdir)
+
+        for test_id in [41, 42, 43]:
+            aoh_path = tmpdir_path / f"aoh_T{test_id}A1_RESIDENT.tif"
+            # Generate an AOH raster and GeoJSON in ESRI:54009
+            generate_faux_aoh(
+                aoh_path,
+                aoh_radius=100000.0,
+                range_radius=100000.0,
+                projection="esri:54009",
+                pixel_scale=100.0
+            )
+
+        # Occurrences are still in EPSG:4326, as that's what GBIF gives us
+        occurences = generate_occurrence_cluster(latitude, longitude, 20, 0.5)
+        df = pd.DataFrame(
+            [(taxon_id, lat, lng) for (lat, lng) in occurences],
+            columns=['iucn_taxon_id', 'decimalLatitude', 'decimalLongitude']
+        )
+
+        result = process_species(tmpdir_path, tmpdir_path, df)
+        assert result.iucn_taxon_id == taxon_id
+        assert result.total_records == len(occurences)
+        assert result.point_prevalence == expected_prev
+        assert result.model_prevalence == 1.0
+        assert result.is_valid == is_valid
+        assert result.is_outlier == expected_outlier

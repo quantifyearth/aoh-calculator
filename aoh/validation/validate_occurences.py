@@ -11,7 +11,6 @@ from typing import NamedTuple
 import geopandas as gpd
 import pandas as pd
 import yirgacheffe as yg
-from pyproj import Transformer
 from shapely.geometry import Point
 
 class Record(NamedTuple):
@@ -39,7 +38,7 @@ def process_species(
         raise ValueError("Too many taxon IDs")
     taxon_id = taxon_ids[0]
 
-    aoh_files = list(aohs_path.glob(f"**/{taxon_id}_*.tif"))
+    aoh_files = list(aohs_path.glob(f"**/aoh_T{taxon_id}A*_*.tif"))
     # We here are aborting on those species with no data or those
     # with multiple seasons
     if len(aoh_files) == 0:
@@ -52,31 +51,32 @@ def process_species(
     with open(aoh_data_path, 'r', encoding='utf-8') as f:
         aoh_data = json.load(f)
 
-    species_data_files = list(species_data_path.glob(f"**/{taxon_id}_*.geojson"))
+    species_data_files = list(species_data_path.glob(f"**/range_T{taxon_id}A*_*.geojson"))
     if len(species_data_files) != 1:
         raise RuntimeError(
             f"We expected one GeoJSON file beside the GeoTIFF, we found {len(species_data_files)} for {taxon_id}"
         )
     species_range = gpd.read_file(species_data_files[0])
-
-    # From Dahal et al: "This ensured that we only included points which fell inside
-    # the boundaries of the selected range maps."
-    points_gdf = gpd.GeoDataFrame(
-        species_occurrences,
-        geometry=[
-            Point(lon, lat)
-            for lon, lat in
-            zip(species_occurrences['decimalLongitude'], species_occurrences['decimalLatitude'])
-        ],
-        crs='EPSG:4326',
-    )
-    clipped_points = gpd.sjoin(points_gdf, species_range, predicate='within', how='inner')
-
-    pixel_set = set()
     with yg.read_raster(aoh_files[0]) as aoh:
+
+        # From Dahal et al: "This ensured that we only included points which fell inside
+        # the boundaries of the selected range maps."
+        wgs84_points_gdf = gpd.GeoDataFrame(
+            species_occurrences,
+            geometry=[
+                Point(lon, lat)
+                for lon, lat in
+                zip(species_occurrences['decimalLongitude'], species_occurrences['decimalLatitude'])
+            ],
+            crs='EPSG:4326',
+        )
+
         # The GBIF data is in WGS84, and so we need to map that to a point in the
         # AOH raster projection space
-        transformer = Transformer.from_crs("EPSG:4326", aoh.map_projection.name)
+        points_gdf = wgs84_points_gdf.to_crs(aoh.map_projection.name)
+        clipped_points = gpd.sjoin(points_gdf, species_range, predicate='within', how='inner')
+
+        pixel_set = set()
 
         results = []
         for _, row in clipped_points.iterrows():
@@ -85,7 +85,8 @@ def process_species(
             # each species point locality was determined using bilinear interpolation of the four
             # nearest cells."
 
-            x, y = transformer.transform(row.decimalLongitude, row.decimalLatitude)
+            # These have been converted to the right projection already
+            x, y = row.geometry.x, row.geometry.y
             aligned_x = (x - aoh.area.left) / aoh.map_projection.xstep
             aligned_y = (y - aoh.area.top) / aoh.map_projection.ystep
             floored_aligned_x = math.floor(aligned_x)
@@ -136,7 +137,6 @@ def process_species(
     else:
         point_prevalence = None
         is_outlier = None
-
 
     return Record(
         taxon_id,                           # Species Redlist ID
