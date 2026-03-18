@@ -1,3 +1,13 @@
+## v2.1.1 (18/03/2026)
+
+### Changed
+
+* For model validation results return all species, not just the ones marked as outliers.
+
+### Fixed
+
+* Remove Yirgacheffe chunk size override that was being inherited globally rather than just for aohcalc.
+
 ## v2.1.0 (09/03/2026)
 
 ### Changed
