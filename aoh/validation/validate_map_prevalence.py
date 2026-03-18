@@ -133,7 +133,7 @@ def model_validation(aoh_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, 
         raise ValueError("No species classes were found")
 
     # Fit models for each class
-    per_class_outliers_df = []
+    per_class_results_df = []
     per_class_model_coefficients = []
     per_class_random_effects = []
 
@@ -159,7 +159,7 @@ def model_validation(aoh_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, 
         klass_df = add_diagnostic_columns(klass_df, upper_fence, lower_fence)
         klass_outliers = klass_df[klass_df.outlier == True]  # pylint: disable = C0121
         print(f"\toutliers: {len(klass_outliers)}")
-        per_class_outliers_df.append(klass_outliers)
+        per_class_results_df.append(klass_df)
 
         coef_df = extract_model_coefficients(model, klass)
         per_class_model_coefficients.append(coef_df)
@@ -168,7 +168,7 @@ def model_validation(aoh_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, 
         per_class_random_effects.append(ranef_df)
 
     # Concatenate results
-    outliers_df = pd.concat(per_class_outliers_df)  # type: ignore[arg-type]
+    outliers_df = pd.concat(per_class_results_df)  # type: ignore[arg-type]
     model_coefficients_df = pd.concat(per_class_model_coefficients)  # type: ignore[arg-type]
     random_effects_df = pd.concat(per_class_random_effects)  # type: ignore[arg-type]
 

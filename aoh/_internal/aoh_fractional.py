@@ -11,8 +11,6 @@ from .speciesinfo import SpeciesInfo
 
 logger = logging.getLogger(__name__)
 
-yg.constants.YSTEP = 2048
-
 def aohcalc_fractional(
     habitats_directory_path: Path | str,
     elevation_path: Path | str | tuple[Path,Path] | tuple[str,str],
