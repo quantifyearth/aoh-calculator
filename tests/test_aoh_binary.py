@@ -114,14 +114,7 @@ def generate_species_info(
     with open(output_path, "w", encoding="UTF-8") as f:
         json.dump(feature, f)
 
-def generate_vector_mask(output_path: Path) -> None:
-    coordinates = [[
-        [-180, -90],
-        [0, -90],
-        [0, 90],
-        [-180, 90],
-        [-180, -90],
-    ]]
+def generate_vector_mask(output_path: Path, coordinates: list[list[list[int]]]) -> None:
     polygon = geojson.Polygon(coordinates)
     feature= geojson.Feature(geometry=polygon)
     with open(output_path, "w", encoding="UTF-8") as f:
@@ -686,8 +679,29 @@ def test_simple_aoh_area_and_weights() -> None:
             assert with_area_manifest["aoh_total"] == manual_version_total.sum()
             assert with_area_manifest["prevalence"] == 0.5 # over small area this should still hold
 
-
-def test_simple_aoh_vector_mask() -> None:
+@pytest.mark.parametrize("mask_area,overlap", [
+    (
+        [[
+            [-180, -90],
+            [0, -90],
+            [0, 90],
+            [-180, 90],
+            [-180, -90],
+        ]],
+        0.5
+    ),
+    (
+        [[
+            [-180, -90],
+            [-170, -90],
+            [-170, 90],
+            [-180, 90],
+            [-180, -90],
+        ]],
+        0
+    ),
+])
+def test_simple_aoh_vector_mask(mask_area,overlap) -> None:
     dims = (200, 200)
     with tempfile.TemporaryDirectory() as tempdir:
         tmp = Path(tempdir)
@@ -727,7 +741,7 @@ def test_simple_aoh_vector_mask() -> None:
         )
 
         mask_path = tmp / "mask.geojson"
-        generate_vector_mask(mask_path)
+        generate_vector_mask(mask_path, mask_area)
 
         output_dir_with_mask = tmp / "results_with_mask"
         aohcalc_binary(
@@ -739,13 +753,25 @@ def test_simple_aoh_vector_mask() -> None:
             weight_layer_paths=[mask_path],
         )
 
-        with (
-            yg.read_raster(output_dir_without_mask / "aoh_T1234A789_1.tif") as aoh_sans_mask,
-            yg.read_raster(output_dir_with_mask / "aoh_T1234A789_1.tif") as aoh_with_mask,
-        ):
-            sans_mask_version_total = aoh_sans_mask.sum()
-            mask_version_total = aoh_with_mask.sum()
-            assert mask_version_total == sans_mask_version_total / 2
+        with open(output_dir_without_mask / "aoh_T1234A789_1.json", "r", encoding="UTF-8") as f:
+            without_mask_manifest = json.load(f)
+        with open(output_dir_with_mask / "aoh_T1234A789_1.json", "r", encoding="UTF-8") as f:
+            with_mask_manifest = json.load(f)
+
+        assert without_mask_manifest["aoh_total"] > 0
+        for key in ["range_total", "hab_total", "dem_total", "aoh_total"]:
+            assert with_mask_manifest[key] == without_mask_manifest[key] * overlap
+
+        try:
+            with (
+                yg.read_raster(output_dir_without_mask / "aoh_T1234A789_1.tif") as aoh_sans_mask,
+                yg.read_raster(output_dir_with_mask / "aoh_T1234A789_1.tif") as aoh_with_mask,
+            ):
+                sans_mask_version_total = aoh_sans_mask.sum()
+                mask_version_total = aoh_with_mask.sum()
+                assert mask_version_total == sans_mask_version_total * overlap
+        except FileNotFoundError:
+            assert overlap == 0
 
 
 @pytest.mark.parametrize("constant", [42, 3.5])

@@ -200,7 +200,20 @@ def aohcalc_fractional(
     else:
         weights_map = weights * area_per_pixel
 
-    range_total = (range_map * weights_map).sum()
+    try:
+        range_total = (range_map * weights_map).sum()
+    except ValueError:
+        # if the weights don't intersect with the range we have 0 AOH
+        species_info.update_manifest({
+            'range_total': 0.0,
+            'hab_total': 0.0,
+            'dem_total': 0.0,
+            'aoh_total': 0.0,
+            'prevalence': 0.0,
+            'error': 'Range and weights do not intersect',
+        })
+        species_info.save_manifest(output_directory_path)
+        return
 
     # We've had instances of overflow issues with large ranges in the past
     assert range_total >= 0.0
