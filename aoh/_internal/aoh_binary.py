@@ -1,12 +1,11 @@
 import logging
-import operator
 import os
-from functools import reduce
 from pathlib import Path
 
 import yirgacheffe as yg
 from alive_progress import alive_bar # type: ignore
 
+from ._common import load_weights
 from .speciesinfo import SpeciesInfo
 
 logger = logging.getLogger(__name__)
@@ -165,18 +164,26 @@ def aohcalc_binary(
     )
 
     # We can treat the area_per_pixel value as a built in weight
-    weights_map : float | yg.YirgacheffeLayer = area_per_pixel
-    if weight_layer_paths is not None and weight_layer_paths:
-        rasters = [area_per_pixel]
-        for p in weight_layer_paths:
-            try:
-                raster = yg.read_narrow_raster(p)
-            except ValueError:
-                raster = yg.read_raster(p)
-            rasters.append(raster)
-        weights_map = reduce(operator.mul, rasters)
+    weights = load_weights(weight_layer_paths)
+    if weights is None:
+        weights_map : float | yg.YirgacheffeLayer = area_per_pixel
+    else:
+        weights_map = weights * area_per_pixel
 
-    range_total = (range_map * weights_map).sum()
+    try:
+        range_total = (range_map * weights_map).sum()
+    except ValueError:
+        # if the weights don't intersect with the range we have 0 AOH
+        species_info.update_manifest({
+            'range_total': 0.0,
+            'hab_total': 0.0,
+            'dem_total': 0.0,
+            'aoh_total': 0.0,
+            'prevalence': 0.0,
+            'error': 'Range and weights do not intersect',
+        })
+        species_info.save_manifest(output_directory_path)
+        return
 
     # We've had instances of overflow issues with large ranges in the past
     assert range_total >= 0.0
