@@ -114,6 +114,19 @@ def generate_species_info(
     with open(output_path, "w", encoding="UTF-8") as f:
         json.dump(feature, f)
 
+def generate_vector_mask(output_path: Path) -> None:
+    coordinates = [[
+        [-180, -90],
+        [0, -90],
+        [0, 90],
+        [-180, 90],
+        [-180, -90],
+    ]]
+    polygon = geojson.Polygon(coordinates)
+    feature= geojson.Feature(geometry=polygon)
+    with open(output_path, "w", encoding="UTF-8") as f:
+        json.dump(feature, f)
+
 @pytest.mark.parametrize("force_habitat", [True, False])
 def test_simple_aoh(force_habitat) -> None:
     dims = (200, 100)
@@ -684,3 +697,125 @@ def test_simple_aoh_area_and_weights() -> None:
 
             assert with_area_manifest["aoh_total"] == manual_version_total.sum()
             assert with_area_manifest["prevalence"] == 0.5 # over small area this should still hold
+
+
+def test_simple_aoh_vector_mask() -> None:
+    dims = (200, 200)
+    with tempfile.TemporaryDirectory() as tempdir:
+        tmp = Path(tempdir)
+
+        habitats_path = tmp / "habitats"
+        os.makedirs(habitats_path, exist_ok=True)
+        generate_habitat_maps(
+            habitats_path,
+            dims,
+            {100, 200},
+        )
+
+        min_elevation_path = tmp / "elevation_min.tif"
+        generate_flat_elevation_map(min_elevation_path, dims, -200)
+        max_elevation_path = tmp / "elevation_max.tif"
+        generate_flat_elevation_map(max_elevation_path, dims, 1000)
+
+        crosswalk = {
+            "1.0": {100, 101, 102},
+            "1.1": {100, 101},
+            "1.2": {100, 102},
+            "2.0": {200, 201},
+            "2.1": {200, 201},
+        }
+        crosswalk_path = tmp / "crosswalk.csv"
+        generate_crosswalk(crosswalk_path, crosswalk)
+
+        species_data_path = tmp / "species.geojson"
+        generate_species_info(species_data_path, (100, 200), {"1.1"})
+
+        output_dir_without_mask = tmp / "results_without_mask"
+        aohcalc_fractional(
+            habitats_path,
+            (min_elevation_path, max_elevation_path),
+            crosswalk_path,
+            species_data_path,
+            output_dir_without_mask,
+        )
+
+        mask_path = tmp / "mask.geojson"
+        generate_vector_mask(mask_path)
+
+        output_dir_with_mask = tmp / "results_with_mask"
+        aohcalc_fractional(
+            habitats_path,
+            (min_elevation_path, max_elevation_path),
+            crosswalk_path,
+            species_data_path,
+            output_dir_with_mask,
+            weight_layer_paths=[mask_path],
+        )
+
+        with (
+            yg.read_raster(output_dir_without_mask / "aoh_T1234A789_1.tif") as aoh_sans_mask,
+            yg.read_raster(output_dir_with_mask / "aoh_T1234A789_1.tif") as aoh_with_mask,
+        ):
+            sans_mask_version_total = aoh_sans_mask.sum()
+            mask_version_total = aoh_with_mask.sum()
+            assert mask_version_total == sans_mask_version_total / 2
+
+
+@pytest.mark.parametrize("constant", [42, 3.5])
+def test_simple_aoh_constant_weight(constant) -> None:
+    dims = (200, 200)
+    with tempfile.TemporaryDirectory() as tempdir:
+        tmp = Path(tempdir)
+
+        habitats_path = tmp / "habitats"
+        os.makedirs(habitats_path, exist_ok=True)
+        generate_habitat_maps(
+            habitats_path,
+            dims,
+            {100, 200},
+        )
+
+        min_elevation_path = tmp / "elevation_min.tif"
+        generate_flat_elevation_map(min_elevation_path, dims, -200)
+        max_elevation_path = tmp / "elevation_max.tif"
+        generate_flat_elevation_map(max_elevation_path, dims, 1000)
+
+        crosswalk = {
+            "1.0": {100, 101, 102},
+            "1.1": {100, 101},
+            "1.2": {100, 102},
+            "2.0": {200, 201},
+            "2.1": {200, 201},
+        }
+        crosswalk_path = tmp / "crosswalk.csv"
+        generate_crosswalk(crosswalk_path, crosswalk)
+
+        species_data_path = tmp / "species.geojson"
+        generate_species_info(species_data_path, (100, 200), {"1.1"})
+
+        output_dir_without_mask = tmp / "results_without_mask"
+        aohcalc_fractional(
+            habitats_path,
+            (min_elevation_path, max_elevation_path),
+            crosswalk_path,
+            species_data_path,
+            output_dir_without_mask,
+        )
+
+        output_dir_with_mask = tmp / "results_with_mask"
+        aohcalc_fractional(
+            habitats_path,
+            (min_elevation_path, max_elevation_path),
+            crosswalk_path,
+            species_data_path,
+            output_dir_with_mask,
+            weight_layer_paths=[str(constant)],
+        )
+
+        with (
+            yg.read_raster(output_dir_without_mask / "aoh_T1234A789_1.tif") as aoh_sans_mask,
+            yg.read_raster(output_dir_with_mask / "aoh_T1234A789_1.tif") as aoh_with_mask,
+        ):
+            sans_mask_version_total = aoh_sans_mask.sum()
+            mask_version_total = aoh_with_mask.sum()
+            assert mask_version_total == sans_mask_version_total * constant

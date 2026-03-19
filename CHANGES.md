@@ -1,3 +1,9 @@
+## v2.1.2
+
+### Added
+
+* Weight layers can either be vector data (geojson, gpkg, or shapefile) or a constant value string (e.g., "42" or "3.5" - useful for the command line to scale the results).
+
 ## v2.1.1 (18/03/2026)
 
 ### Changed
