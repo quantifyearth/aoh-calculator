@@ -787,7 +787,7 @@ def test_simple_aoh_vector_mask(mask_area,overlap) -> None:
             assert overlap == 0
 
 
-@pytest.mark.parametrize("constant", [42, 3.5])
+@pytest.mark.parametrize("constant", [42, 3.5, "42", "3.5"])
 def test_simple_aoh_constant_weight(constant) -> None:
     dims = (200, 200)
     with tempfile.TemporaryDirectory() as tempdir:
@@ -835,7 +835,7 @@ def test_simple_aoh_constant_weight(constant) -> None:
             crosswalk_path,
             species_data_path,
             output_dir_with_mask,
-            weight_layer_paths=[str(constant)],
+            weight_layer_paths=[constant],
         )
 
         with (
@@ -844,4 +844,4 @@ def test_simple_aoh_constant_weight(constant) -> None:
         ):
             sans_mask_version_total = aoh_sans_mask.sum()
             mask_version_total = aoh_with_mask.sum()
-            assert mask_version_total == sans_mask_version_total * constant
+            assert mask_version_total == sans_mask_version_total * float(constant)

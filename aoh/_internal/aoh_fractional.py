@@ -16,7 +16,7 @@ def aohcalc_fractional(
     crosswalk_path: Path | str,
     species_data_path: Path | str,
     output_directory_path: Path | str,
-    weight_layer_paths: list[Path] | list[str] | None = None,
+    weight_layer_paths: list[Path | str | float | int ] | None = None,
     force_habitat: bool=False,
     multiply_by_area_per_pixel: bool=False,
 ) -> None:
@@ -139,8 +139,6 @@ def aohcalc_fractional(
         elevation_path = Path(elevation_path)
     crosswalk_path = Path(crosswalk_path)
     species_data_path = Path(species_data_path)
-    if weight_layer_paths is not None:
-        weight_layer_paths = [Path(x) for x in weight_layer_paths]
     output_directory_path = Path(output_directory_path)
 
     os.makedirs(output_directory_path, exist_ok=True)
