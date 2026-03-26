@@ -24,7 +24,7 @@ def test_simple_summary_all_pixels_no_overlap(processes) -> None:
                 val = (y * 4) + x
                 data = np.array([[val + 1]])
                 with yg.from_array(data, (x, y + 1), projection) as cell:
-                    cell.to_geotiff(aohs_path / f"{val}_season.tif")
+                    cell.to_geotiff(aohs_path / f"aoh_T{val}A42_season.tif")
 
         result_path = dirpath / "species_richness.tif"
         species_richness(aohs_path, result_path, processes)
@@ -52,7 +52,7 @@ def test_simple_summary_all_pixels_overlap(processes) -> None:
                 val = (y * 4) + x
                 data = np.array([[val + 1]])
                 with yg.from_array(data, (0, 1), projection) as cell:
-                    cell.to_geotiff(aohs_path / f"{val}_season.tif")
+                    cell.to_geotiff(aohs_path / f"aoh_T{val}A42_season.tif")
 
         result_path = dirpath / "species_richness.tif"
         species_richness(aohs_path, result_path, processes)
@@ -74,7 +74,7 @@ def test_seasons_are_merged() -> None:
         for season in ["breeding", "nonbreeding"]:
             data = np.array([[1]])
             with yg.from_array(data, (0, 1), projection) as cell:
-                cell.to_geotiff(aohs_path / f"42_{season}.tif")
+                cell.to_geotiff(aohs_path / f"aoh_T1A42_{season}.tif")
 
         result_path = dirpath / "species_richness.tif"
         species_richness(aohs_path, result_path, 1)
@@ -100,7 +100,7 @@ def test_simple_summary_gaps() -> None:
                 val = (y * 4) + x
                 data = np.array([[val % 2]])
                 with yg.from_array(data, (x, y + 1), projection) as cell:
-                    cell.to_geotiff(aohs_path / f"{val}_season.tif")
+                    cell.to_geotiff(aohs_path / f"aoh_T{val}A42_season.tif")
 
         result_path = dirpath / "species_richness.tif"
         species_richness(aohs_path, result_path, 1)
