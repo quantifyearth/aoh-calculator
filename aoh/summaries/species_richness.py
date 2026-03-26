@@ -10,6 +10,8 @@ from pathlib import Path
 
 import yirgacheffe as yg
 
+from .. import IUCNFormatFilename
+
 def stage_1_worker(
     filename: str,
     result_dir: str,
@@ -66,9 +68,10 @@ def species_richness(
     aohs = list(Path(aohs_dir).rglob('*.tif'))
     print(f"We found {len(list(aohs))} AoH rasters")
 
-    species_rasters : dict[str,set[Path]] = {}
+    species_rasters : dict[int,set[Path]] = {}
     for raster_path in aohs:
-        speciesid = raster_path.name.split('_')[0]
+        parts = IUCNFormatFilename.of_filename(raster_path)
+        speciesid = parts.taxon_id
         species_rasters[speciesid] = species_rasters.get(speciesid, set()).union({raster_path})
     print(f"Species detected: {len(species_rasters)} ")
 

@@ -17,6 +17,8 @@ from osgeo import gdal # type: ignore
 from yirgacheffe.layers import RasterLayer # type: ignore
 import yirgacheffe.operators as yo # type: ignore
 
+from .. import IUCNFormatFilename
+
 def geometric_sum(raster: RasterLayer) -> Optional[RasterLayer]:
     aoh = raster.sum()
     if aoh > 0.0:
@@ -136,9 +138,10 @@ def endemism(
     aohs = list(aohs_dir.glob("**/*.tif"))
     print(f"We found {len(aohs)} AoH rasters")
 
-    species_rasters : Dict[str,Set[Path]] = {}
+    species_rasters : Dict[int,Set[Path]] = {}
     for raster_path in aohs:
-        speciesid = raster_path.name.split('_')[0]
+        parts = IUCNFormatFilename.of_filename(raster_path)
+        speciesid = parts.taxon_id
         species_rasters[speciesid] = species_rasters.get(speciesid, set()).union({raster_path})
     print(f"Species detected: {len(species_rasters)} ")
 

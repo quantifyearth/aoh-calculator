@@ -8,6 +8,10 @@
 
 * Validated compatibility with pandas 3, so updated requirements list.
 
+### Fixed
+
+* Fixed species-richness and endemism scripts to use the new IUCN format filenames.
+
 ## v2.1.1 (18/03/2026)
 
 ### Changed

@@ -6,6 +6,8 @@ from pathlib import Path
 import geopandas as gpd
 import pandas as pd
 
+from .utils import IUCNFormatFilename
+
 def load_crosswalk_table(table_file_name: Path) -> dict[str,list[int]]:
     rawdata = pd.read_csv(table_file_name)
     result : dict[str,list[int]] = {}
@@ -86,19 +88,9 @@ class SpeciesInfo:
             raise ValueError(self.manifest["error"]) from exc
 
     def filenames(self, output_directory_path: Path) -> tuple[Path,Path]:
-        species_id_part = f"T{self.species_id}"
-        assessment_id = self.assessment_id
-        assessment_id_part = f"A{assessment_id}" if assessment_id is not None else ""
-
-        season = self.season
-        seasonality_part = f"_{season}" if season is not None else ""
-
-        stem = f"aoh_{species_id_part}{assessment_id_part}{seasonality_part}"
-
-        result_filename = output_directory_path / f"{stem}.tif"
-        manifest_filename = output_directory_path / f"{stem}.json"
-
-        return result_filename, manifest_filename
+        raster_filename = IUCNFormatFilename("aoh", self.species_id, self.assessment_id, self.season, ".tif")
+        json_filename = IUCNFormatFilename("aoh", self.species_id, self.assessment_id, self.season, ".json")
+        return output_directory_path / raster_filename.to_path(), output_directory_path / json_filename.to_path()
 
     def save_manifest(self, output_directory_path:Path, error_message: str | None = None) -> None:
         _, manifest_filename = self.filenames(output_directory_path)
