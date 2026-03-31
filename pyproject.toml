@@ -40,6 +40,8 @@ dependencies = [
 validation = [
     "pymer4==0.8.2",
     "rpy2==3.6.6",
+    "rpy2-rinterface==3.6.5",
+    "rpy2-robjects==3.6.4",
     "joblib",
     "seaborn",
     "matplotlib",
