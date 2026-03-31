@@ -39,7 +39,7 @@ dependencies = [
 [project.optional-dependencies]
 validation = [
     "pymer4==0.8.2",
-    "rpy2",
+    "rpy2==3.6.6",
     "joblib",
     "seaborn",
     "matplotlib",
