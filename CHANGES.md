@@ -1,4 +1,4 @@
-## v2.1.2
+## v2.1.2 (31/03/2026)
 
 ### Added
 
@@ -7,6 +7,7 @@
 ### Changed
 
 * Validated compatibility with pandas 3, so updated requirements list.
+* Updated endemism script to remove deprecated API usage from Yirgacheffe.
 
 ### Fixed
 
