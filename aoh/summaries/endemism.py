@@ -4,6 +4,7 @@
 
 import argparse
 import os
+import resource
 import sys
 import tempfile
 import time
@@ -29,6 +30,11 @@ def stage_1_worker(
     input_queue: Queue,
 ) -> None:
     output_tif = result_dir / filename
+
+    # We will open a lot of files here. Kanske Yirgacheffe should do something
+    # here.
+    _, max_fd_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
+    resource.setrlimit(resource.RLIMIT_NOFILE, (max_fd_limit, max_fd_limit))
 
     partials = []
     while True:
