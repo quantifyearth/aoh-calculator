@@ -4,6 +4,7 @@
 
 import argparse
 import os
+import resource
 import sys
 import tempfile
 import time
@@ -13,16 +14,14 @@ from multiprocessing import Manager, Process, Queue, cpu_count
 from typing import Dict, Optional, Set
 
 import numpy as np
-from osgeo import gdal # type: ignore
-from yirgacheffe.layers import RasterLayer # type: ignore
-import yirgacheffe.operators as yo # type: ignore
+import yirgacheffe as yg
 
 from .. import IUCNFormatFilename
 
-def geometric_sum(raster: RasterLayer) -> Optional[RasterLayer]:
+def geometric_sum(raster: yg.YirgacheffeLayer) -> Optional[yg.YirgacheffeLayer]:
     aoh = raster.sum()
     if aoh > 0.0:
-        return yo.log(yo.where(raster == 0.0, float('nan'), raster) / aoh)  # type: ignore[no-any-return]
+        return yg.log(yg.where(raster == 0.0, float('nan'), raster) / aoh)
     return None
 
 def stage_1_worker(
@@ -32,66 +31,54 @@ def stage_1_worker(
 ) -> None:
     output_tif = result_dir / filename
 
-    merged_result = None
+    # We will open a lot of files here. Kanske Yirgacheffe should do something
+    # here.
+    _, max_fd_limit = resource.getrlimit(resource.RLIMIT_NOFILE)
+    resource.setrlimit(resource.RLIMIT_NOFILE, (max_fd_limit, max_fd_limit))
 
+    partials = []
     while True:
         raster_paths = input_queue.get()
         if raster_paths is None:
             break
 
-        rasters = [RasterLayer.layer_from_file(x) for x in raster_paths]
+        rasters = [yg.read_raster(x) for x in raster_paths]
 
         match len(rasters):
             case 2:
-                union = RasterLayer.find_union(rasters)
-                for r in rasters:
-                    r.set_window_for_union(union)
-
                 sums = tuple(geometric_sum(r) for r in rasters)
 
                 match sums:
                     case None, None:
                         continue
                     case a, None:
-                        combined = a.nan_to_num() # type: ignore
+                        assert a is not None # keep mypy happy
+                        partial = a.nan_to_num()
                     case None, b:
-                        combined = b.nan_to_num() # type: ignore
+                        assert b is not None # keep mypy happy
+                        partial = b.nan_to_num()
                     case s1, s2:
-                        levelled_s1 = s1.nan_to_num(nan=np.inf * -1) # type: ignore
-                        levelled_s2 = s2.nan_to_num(nan=np.inf * -1) # type: ignore
-                        levelled_combined = yo.maximum(levelled_s1, levelled_s2)
-                        combined = levelled_combined.nan_to_num(neginf=0.0)
-
-
-                partial = RasterLayer.empty_raster_layer_like(rasters[0], datatype=gdal.GDT_Float64)
-                combined.save(partial)
+                        assert s1 is not None # keep mypy happy
+                        assert s2 is not None # keep mypy happy
+                        levelled_s1 = s1.nan_to_num(nan=np.inf * -1)
+                        levelled_s2 = s2.nan_to_num(nan=np.inf * -1)
+                        levelled_combined = yg.maximum(levelled_s1, levelled_s2)
+                        partial = levelled_combined.nan_to_num(neginf=0.0)
             case 1:
                 summed = geometric_sum(rasters[0])
                 if summed is not None:
-                    partial = RasterLayer.empty_raster_layer_like(rasters[0], datatype=gdal.GDT_Float64)
-                    summed.nan_to_num().save(partial)
+                    partial = summed.nan_to_num()
                 else:
                     continue
             case _:
                 raise ValueError("too many seasons")
 
-        if merged_result is None:
-            merged_result = partial
-        else:
-            merged_result.reset_window()
+        partials.append(partial)
 
-            union = RasterLayer.find_union([merged_result, partial])
-            partial.set_window_for_union(union)
-            merged_result.set_window_for_union(union)
+    if partials:
+        final = yg.sum(partials)
+        final.to_geotiff(output_tif)
 
-            merged = partial + merged_result
-            temp = RasterLayer.empty_raster_layer_like(merged_result)
-            merged.save(temp)
-            merged_result = temp
-
-    if merged_result is not None:
-        final = RasterLayer.empty_raster_layer_like(merged_result, filename=output_tif)
-        merged_result.save(final)
 
 def stage_2_worker(
     filename: str,
@@ -100,32 +87,17 @@ def stage_2_worker(
 ) -> None:
     output_tif = result_dir / filename
 
-    merged_result = None
+    partials = []
 
     while True:
         path = input_queue.get()
         if path is None:
             break
+        partials.append(yg.read_raster(path))
 
-        with RasterLayer.layer_from_file(path) as partial_raster:
-            if merged_result is None:
-                merged_result = RasterLayer.empty_raster_layer_like(partial_raster)
-                partial_raster.save(merged_result)
-            else:
-                merged_result.reset_window()
-
-                union = RasterLayer.find_union([merged_result, partial_raster])
-                merged_result.set_window_for_union(union)
-                partial_raster.set_window_for_union(union)
-
-                calc = merged_result + partial_raster
-                temp = RasterLayer.empty_raster_layer_like(merged_result)
-                calc.save(temp)
-                merged_result = temp
-
-    if merged_result:
-        final = RasterLayer.empty_raster_layer_like(merged_result, filename=output_tif)
-        merged_result.save(final)
+    if partials:
+        final = yg.sum(partials)
+        final.to_geotiff(output_tif)
 
 def endemism(
     aohs_dir: Path,
@@ -198,22 +170,11 @@ def endemism(
                     processes.remove(candidate)
                 time.sleep(1)
 
-        with RasterLayer.layer_from_file(species_richness_path) as species_richness:
-            with RasterLayer.layer_from_file(os.path.join(tempdir, "summed_proportion.tif")) as summed_proportion:
-
-                intersection = RasterLayer.find_intersection([summed_proportion, species_richness])
-                summed_proportion.set_window_for_intersection(intersection)
-                species_richness.set_window_for_intersection(intersection)
-
-                cleaned_species_richness = yo.where(species_richness > 0, species_richness, float('nan'))
-
-                with RasterLayer.empty_raster_layer_like(
-                    summed_proportion,
-                    filename=output_path,
-                    nodata=np.nan
-                ) as result:
-                    calc = yo.exp(summed_proportion / cleaned_species_richness)
-                    calc.save(result)
+        with yg.read_raster(species_richness_path) as species_richness:
+            with yg.read_raster(os.path.join(tempdir, "summed_proportion.tif")) as summed_proportion:
+                cleaned_species_richness = yg.where(species_richness > 0, species_richness, float('nan'))
+                endemism_final = yg.exp(summed_proportion / cleaned_species_richness)
+                endemism_final.to_geotiff(output_path, nodata=np.nan)
 
 
 def main() -> None:
