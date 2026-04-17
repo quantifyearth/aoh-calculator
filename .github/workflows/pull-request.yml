@@ -28,6 +28,8 @@ jobs:
 
       - name: Install system dependencies
         run: |
+          sed -i 's|http://archive.ubuntu.com/ubuntu|http://azure.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
+          sed -i 's|http://security.ubuntu.com/ubuntu|http://azure.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
           apt-get update -qqy
           apt-get install -y git python3-pip r-base libtirpc-dev
 
