@@ -30,7 +30,7 @@ def test_simple_summary_all_pixels_no_overlap(processes) -> None:
         species_richness(aohs_path, result_path, processes)
 
         with yg.read_raster(result_path) as result:
-            assert result.window == yg.Window(0, 0, 4, 4)
+            assert result.dimensions == (4, 4)
             assert result.area == yg.Area(0, 4, 4, 0, projection)
             expected = np.ones((4,4))
             result_data = result.read_array(0, 0, 4, 4)
@@ -58,7 +58,7 @@ def test_simple_summary_all_pixels_overlap(processes) -> None:
         species_richness(aohs_path, result_path, processes)
 
         with yg.read_raster(result_path) as result:
-            assert result.window == yg.Window(0, 0, 1, 1)
+            assert result.dimensions == (1, 1)
             assert result.area == yg.Area(0, 1, 1, 0, projection)
             result_data = result.read_array(0, 0, 1, 1)[0][0]
             assert result_data == (4 * 4)
@@ -80,7 +80,7 @@ def test_seasons_are_merged() -> None:
         species_richness(aohs_path, result_path, 1)
 
         with yg.read_raster(result_path) as result:
-            assert result.window == yg.Window(0, 0, 1, 1)
+            assert result.dimensions == (1, 1)
             assert result.area == yg.Area(0, 1, 1, 0, projection)
             result_data = result.read_array(0, 0, 1, 1)[0][0]
             assert result_data == 1
@@ -106,7 +106,7 @@ def test_simple_summary_gaps() -> None:
         species_richness(aohs_path, result_path, 1)
 
         with yg.read_raster(result_path) as result:
-            assert result.window == yg.Window(0, 0, 4, 4)
+            assert result.dimensions == (4, 4)
             assert result.area == yg.Area(0, 4, 4, 0, projection)
             expected = np.array([
                 [0, 1, 0, 1],

@@ -23,8 +23,9 @@ def _enumerate_subset(
 ) -> Set[int]:
     gdal.SetCacheMax(1 * 1024 * 1024 * 1024)
     with yg.read_raster(habitat_path) as habitat_map:
-        blocksize = min(BLOCKSIZE, habitat_map.window.ysize - offset)
-        data = habitat_map.read_array(0, offset, habitat_map.window.xsize, blocksize)
+        width, height = habitat_map.dimensions
+        blocksize = min(BLOCKSIZE, height - offset)
+        data = habitat_map.read_array(0, offset, width, blocksize)
         values = np.unique(data)
         without_nans = values[~np.isnan(values)]
         res = {int(x) for x in without_nans}
@@ -35,7 +36,7 @@ def enumerate_terrain_types(
 ) -> Set[int]:
     gdal.SetCacheMax(1 * 1024 * 1024 * 1024)
     with yg.read_raster(habitat_path) as habitat_map:
-        ysize = habitat_map.window.ysize
+        _, ysize = habitat_map.dimensions
     blocks = range(0, ysize, BLOCKSIZE)
     logger.info("Enumerating habitat classes in raster...")
     with Pool(processes=int(cpu_count() / 2)) as pool:
@@ -123,7 +124,7 @@ def make_single_type_map(
                     # just to ensure that isn't happening.
                     # The 1% check here is probably overly tolerant, but it's enough to catch the
                     # errors that caused this check to be added.
-                    reverted = result.area.reproject(habitat_map.map_projection)
+                    reverted = result.area.reproject(habitat_map.projection)
                     original = habitat_map.area
 
                     if ((abs(original.left - reverted.left) / original.left) > 0.01) or \

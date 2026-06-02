@@ -73,7 +73,7 @@ def process_species(
 
         # The GBIF data is in WGS84, and so we need to map that to a point in the
         # AOH raster projection space
-        points_gdf = wgs84_points_gdf.to_crs(aoh.map_projection.name)
+        points_gdf = wgs84_points_gdf.to_crs(aoh.projection.name)
         clipped_points = gpd.sjoin(points_gdf, species_range, predicate='within', how='inner')
 
         pixel_set = set()
@@ -87,8 +87,8 @@ def process_species(
 
             # These have been converted to the right projection already
             x, y = row.geometry.x, row.geometry.y
-            aligned_x = (x - aoh.area.left) / aoh.map_projection.xstep
-            aligned_y = (y - aoh.area.top) / aoh.map_projection.ystep
+            aligned_x = (x - aoh.area.left) / aoh.projection.xstep
+            aligned_y = (y - aoh.area.top) / aoh.projection.ystep
             floored_aligned_x = math.floor(aligned_x)
             floored_aligned_y = math.floor(aligned_y)
             if (aligned_x - floored_aligned_x) < 0.5:

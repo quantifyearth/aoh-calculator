@@ -187,10 +187,11 @@ def test_simple_aoh(force_habitat) -> None:
         assert manifest["prevalence"] == 0.5
 
         with yg.read_raster(expected_geotiff_path) as result:
-            assert result.window.xsize == dims[0] / 2
-            assert result.window.ysize == dims[1] / 2
-            data = result.read_array(0, 0, result.window.xsize, result.window.ysize)
-        expected = np.full((result.window.ysize, result.window.xsize), 0.5)
+            width, height = result.dimensions
+            assert width == dims[0] / 2
+            assert height == dims[1] / 2
+            data = result.read_array(0, 0, width, height)
+        expected = np.full((height, width), 0.5)
         assert (data == expected).all()
 
 @pytest.mark.parametrize("force_habitat", [True, False])
@@ -331,10 +332,11 @@ def test_simple_aoh_weights(force_habitat) -> None:
         assert manifest["prevalence"] == 0.5
 
         with yg.read_raster(expected_geotiff_path) as result:
-            assert result.window.xsize == dims[0] / 2
-            assert result.window.ysize == dims[1] / 2
-            data = result.read_array(0, 0, result.window.xsize, result.window.ysize)
-        expected = np.full((result.window.ysize, result.window.xsize), 0.5 * pixel_area)
+            width, height = result.dimensions
+            assert width == dims[0] / 2
+            assert height == dims[1] / 2
+            data = result.read_array(0, 0, width, height)
+        expected = np.full((height, width), 0.5 * pixel_area)
         assert (data == expected).all()
 
 @pytest.mark.parametrize("force_habitat", [True, False])
@@ -403,8 +405,9 @@ def test_simple_aoh_multiple_habitats(force_habitat) -> None:
         assert math.isclose(manifest["prevalence"], 2/3)
 
         with yg.read_raster(expected_geotiff_path) as result:
-            assert result.window.xsize == 10
-            assert result.window.ysize == 6
+            width, height = result.dimensions
+            assert width == 10
+            assert height == 6
             data = result.read_array(0, 0, 10, 6)
         expected = np.full((6, 10), 2/3)
         assert np.isclose(data, expected).all()

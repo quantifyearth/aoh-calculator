@@ -60,9 +60,9 @@ def test_simple_make_single_map() -> None:
 
         with  yg.read_raster(habitat_path) as original:
             with yg.read_raster(expected_result_path) as result:
-                assert result.window == original.window
-                original_data = original.read_array(0, 0, original.window.xsize, original.window.ysize)
-                result_data = result.read_array(0, 0, result.window.xsize, result.window.ysize)
+                assert result.dimensions == original.dimensions
+                original_data = original.read_array(0, 0, original.dimensions[0], original.dimensions[1])
+                result_data = result.read_array(0, 0, result.dimensions[0], result.dimensions[1])
 
         # We did not resize or projection, so should be just a simple map
         expected_data = (original_data == 100).astype(int)
@@ -90,10 +90,10 @@ def test_rescale_make_single_map() -> None:
 
         with  yg.read_raster(habitat_path) as original:
             with yg.read_raster(expected_result_path) as result:
-                assert result.window.xsize == original.window.xsize / 2
-                assert result.window.ysize == original.window.ysize / 2
-                original_data = original.read_array(0, 0, original.window.xsize, original.window.ysize)
-                result_data = result.read_array(0, 0, result.window.xsize, result.window.ysize)
+                assert result.dimensions[0] == original.dimensions[0] / 2
+                assert result.dimensions[1] == original.dimensions[1] / 2
+                original_data = original.read_array(0, 0, original.dimensions[0], original.dimensions[1])
+                result_data = result.read_array(0, 0, result.dimensions[0], result.dimensions[1])
 
         binary_original_data = (original_data == 100).astype(int)
         expected_data = binary_original_data.reshape(10, 2, 20, 2).mean(axis=(1, 3))
