@@ -24,7 +24,7 @@ def generate_habitat_map(
         [],
     )
     dataset.SetGeoTransform((-180.0, 360/width, 0.0, 90, 0.0, -180/height))
-    dataset.SetProjection("WGS84")
+    dataset.SetProjection("epsg:4326")
     band = dataset.GetRasterBand(1)
     band.WriteArray(data, 0, 0)
     dataset.Close()
@@ -80,7 +80,7 @@ def test_rescale_make_single_map() -> None:
         make_single_type_map(
             habitat_path,
             180.0 / 10.0, # Scale down by half
-            None,
+            "epsg:4326",
             tmp,
             1,
             100,
