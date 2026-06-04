@@ -181,7 +181,7 @@ def aohcalc_fractional(
     else:
         raise ValueError("Elevation path should be single raster or tuple of min/max raster paths.")
 
-    projection = min_elevation_map.map_projection
+    projection = min_elevation_map.projection
     assert projection is not None
     area_per_pixel = yg.area_raster(projection) if multiply_by_area_per_pixel else 1.0
 

@@ -1,3 +1,9 @@
+## v3.0 (02/06/2026)
+
+### Changed
+
+* Moved to Yirgacheffe 2.0, which isn't a breaking change for this packages APIs, but would break the pipelines built on this AND Yirgacheffe, hence the major version number bump.
+
 ## v2.1.2 (31/03/2026)
 
 ### Added

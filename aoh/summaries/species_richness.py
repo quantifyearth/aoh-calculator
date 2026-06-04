@@ -32,7 +32,7 @@ def stage_1_worker(
         if raster_paths is None:
             break
         seasonal_rasters = [yg.read_raster(x) for x in raster_paths]
-        binary_species_layer = yg.any(seasonal_rasters).astype(yg.DataType.UInt32)
+        binary_species_layer = yg.any(seasonal_rasters).as_type(yg.DataType.UInt32)
         rasters.append(binary_species_layer)
 
     if rasters:

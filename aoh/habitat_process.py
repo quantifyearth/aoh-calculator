@@ -23,8 +23,9 @@ def _enumerate_subset(
 ) -> Set[int]:
     gdal.SetCacheMax(1 * 1024 * 1024 * 1024)
     with yg.read_raster(habitat_path) as habitat_map:
-        blocksize = min(BLOCKSIZE, habitat_map.window.ysize - offset)
-        data = habitat_map.read_array(0, offset, habitat_map.window.xsize, blocksize)
+        width, height = habitat_map.dimensions
+        blocksize = min(BLOCKSIZE, height - offset)
+        data = habitat_map.read_array(0, offset, width, blocksize)
         values = np.unique(data)
         without_nans = values[~np.isnan(values)]
         res = {int(x) for x in without_nans}
@@ -35,7 +36,7 @@ def enumerate_terrain_types(
 ) -> Set[int]:
     gdal.SetCacheMax(1 * 1024 * 1024 * 1024)
     with yg.read_raster(habitat_path) as habitat_map:
-        ysize = habitat_map.window.ysize
+        _, ysize = habitat_map.dimensions
     blocks = range(0, ysize, BLOCKSIZE)
     logger.info("Enumerating habitat classes in raster...")
     with Pool(processes=int(cpu_count() / 2)) as pool:
@@ -48,19 +49,6 @@ def enumerate_terrain_types(
     except KeyError:
         pass
     return superset
-
-class VsimemFile:
-    def __init__(self, path):
-        self.path = path
-
-    def __enter__(self):
-        return self.path
-
-    def __exit__(self, *args):
-        try:
-            gdal.Unlink(self.path)
-        except RuntimeError:
-            pass
 
 def make_single_type_map(
     habitat_path: Path,
@@ -79,60 +67,17 @@ def make_single_type_map(
 
     with yg.read_raster(habitat_path) as habitat_map:
         logger.info("Filtering for %s...", habitat_value)
+        filtered_map = habitat_map == habitat_value
 
-        # We use the GDAL in memory file system for all this
-        with VsimemFile(f"/vsimem/filtered_{habitat_value}.tif") as filter_map_path:
-            filtered_map = habitat_map == habitat_value
-            filtered_map.to_geotiff(filter_map_path, parallelism=max_threads)
+        if pixel_scale is not None and target_projection is not None:
+            filtered_map = filtered_map.as_type(yg.DataType.Float32).as_projection(
+                yg.MapProjection(target_projection, pixel_scale, -pixel_scale),
+                yg.ResamplingMethod.Average
+            )
 
-            if pixel_scale is not None and target_projection is not None:
-                reprojected_area = filtered_map.area.reproject(
-                    yg.MapProjection(target_projection, pixel_scale, -pixel_scale)
-                )
-            else:
-                reprojected_area = habitat_map.area
+        filename = f"lcc_{habitat_value}.tif"
+        filtered_map.to_geotiff(output_directory_path / filename, parallelism=True)
 
-            with VsimemFile(f"/vsimem/warped_{habitat_value}.tif") as warped_map_path:
-                logger.info("Projecting %s...", habitat_value)
-                gdal.Warp(
-                    warped_map_path,
-                    filter_map_path,
-                    options=gdal.WarpOptions(
-                        creationOptions=[],
-                        multithread=True,
-                        dstSRS=target_projection,
-                        outputType=gdal.GDT_Float32,
-                        xRes=pixel_scale,
-                        yRes=((0.0 - pixel_scale) if pixel_scale is not None else pixel_scale),
-                        resampleAlg="average",
-                        outputBounds=(reprojected_area.left, reprojected_area.bottom,
-                            reprojected_area.right, reprojected_area.top),
-                        targetAlignedPixels=pixel_scale is not None,
-                        warpOptions=[f'NUM_THREADS={max_threads}'],
-                        warpMemoryLimit=available_mem,
-                        workingType=gdal.GDT_Float32
-                    )
-                )
-
-                logger.info("Saving %s...", habitat_value)
-                filename = f"lcc_{habitat_value}.tif"
-                with yg.read_raster(warped_map_path) as result:
-                    # We had issues whereby original GDAL warp worked okay without needing
-                    # output bounds specified, and then at some point that changed and we were
-                    # losing a lot of the top and bottom of the map. This is a sanity check
-                    # just to ensure that isn't happening.
-                    # The 1% check here is probably overly tolerant, but it's enough to catch the
-                    # errors that caused this check to be added.
-                    reverted = result.area.reproject(habitat_map.map_projection)
-                    original = habitat_map.area
-
-                    if ((abs(original.left - reverted.left) / original.left) > 0.01) or \
-                        ((abs(original.right - reverted.right) / original.right) > 0.01) or \
-                        ((abs(original.top - reverted.top) / original.top) > 0.01) or \
-                        ((abs(original.bottom - reverted.bottom) / original.bottom) > 0.01):
-                        raise ValueError(f"Area of reprojected map significantly different: {original} vs {reverted}")
-
-                    result.to_geotiff(output_directory_path / filename)
 
 def habitat_process(
     habitat_path: Path,
