@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aoh"
-version = "3.0.0"
+version = "3.0.1"
 description = "A library for calculating Area of Habitat for species distribution mapping"
 authors = [
     {name = "Michael Dales", email = "mwd24@cam.ac.uk"}
@@ -32,7 +32,7 @@ dependencies = [
     "yirgacheffe>=2.0,<3.0",
     "zenodo_search",
     "pandas>=2.0,<4.0",
-    "gdal[numpy]>=3.8,<3.13",
+    "gdal[numpy]>=3.8,<4.0",
     "tomli",
 ]
 

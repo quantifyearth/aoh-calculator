@@ -1,3 +1,9 @@
+## v3.0.1 (14/06/2026)
+
+### Changed
+
+* Enable use with GDAL 3.13.
+
 ## v3.0 (02/06/2026)
 
 ### Changed

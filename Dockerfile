@@ -1,4 +1,4 @@
-from ghcr.io/osgeo/gdal:ubuntu-small-3.11.0
+from ghcr.io/osgeo/gdal:ubuntu-small-3.13.1
 
 RUN apt-get update -qqy && \
 	apt-get install -qy \
@@ -16,7 +16,7 @@ RUN R -e "install.packages(c('lme4', 'lmerTest'), repos='https://cran.rstudio.co
 # to build, and this means it'll be cached
 RUN rm /usr/lib/python3.*/EXTERNALLY-MANAGED
 RUN pip install numpy
-RUN pip install gdal[numpy]==3.11.0
+RUN pip install gdal[numpy]==3.13.1
 RUN pip install pandas
 
 COPY ./ /root/aoh
