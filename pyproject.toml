@@ -32,7 +32,7 @@ dependencies = [
     "yirgacheffe>=2.0,<3.0",
     "zenodo_search",
     "pandas>=2.0,<4.0",
-    "gdal[numpy]>=3.8,<3.14",
+    "gdal[numpy]>=3.8,<4.0",
     "tomli",
 ]
 
