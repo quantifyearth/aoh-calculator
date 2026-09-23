@@ -97,7 +97,7 @@ def generate_species_info(
     properties = {
         "id_no": "1234",
         "assessment_id": "789",
-        "season": "1",
+        "season": "resident",
         "elevation_lower": float(elevation_range[0]),
         "elevation_upper": float(elevation_range[1]),
         "full_habitat_code": "|".join(sorted(list(habitat_codes))),
@@ -160,9 +160,9 @@ def test_simple_aoh(force_habitat) -> None:
             force_habitat=force_habitat,
         )
 
-        expected_geotiff_path = output_dir / "aoh_T1234A789_1.tif"
+        expected_geotiff_path = output_dir / "aoh_T1234A789_resident.tif"
         assert expected_geotiff_path.exists()
-        expected_manifest_path = output_dir / "aoh_T1234A789_1.json"
+        expected_manifest_path = output_dir / "aoh_T1234A789_resident.json"
         assert expected_manifest_path.exists()
 
         with open(expected_manifest_path, "r", encoding="UTF-8") as f:
@@ -170,7 +170,7 @@ def test_simple_aoh(force_habitat) -> None:
 
         # Check basic facts
         assert manifest["id_no"] == "1234"
-        assert manifest["season"] == "1"
+        assert manifest["season"] == "resident"
         assert manifest["elevation_lower"] == 100
         assert manifest["elevation_upper"] == 200
         assert manifest["full_habitat_code"] == "1.1"
@@ -232,9 +232,9 @@ def test_no_habitat_aoh(force_habitat) -> None:
             force_habitat=force_habitat,
         )
 
-        expected_geotiff_path = output_dir / "aoh_T1234A789_1.tif"
+        expected_geotiff_path = output_dir / "aoh_T1234A789_resident.tif"
         assert expected_geotiff_path.exists() == (not force_habitat)
-        expected_manifest_path = output_dir / "aoh_T1234A789_1.json"
+        expected_manifest_path = output_dir / "aoh_T1234A789_resident.json"
         assert expected_manifest_path.exists()
 
         with open(expected_manifest_path, "r", encoding="UTF-8") as f:
@@ -242,7 +242,7 @@ def test_no_habitat_aoh(force_habitat) -> None:
 
         # Check basic facts
         assert manifest["id_no"] == "1234"
-        assert manifest["season"] == "1"
+        assert manifest["season"] == "resident"
         assert manifest["elevation_lower"] == 100
         assert manifest["elevation_upper"] == 200
         assert manifest["full_habitat_code"] == "1.1"
@@ -301,9 +301,9 @@ def test_simple_aoh_weight(force_habitat) -> None:
             weight_layer_paths=[area_path],
         )
 
-        expected_geotiff_path = output_dir / "aoh_T1234A789_1.tif"
+        expected_geotiff_path = output_dir / "aoh_T1234A789_resident.tif"
         assert expected_geotiff_path.exists()
-        expected_manifest_path = output_dir / "aoh_T1234A789_1.json"
+        expected_manifest_path = output_dir / "aoh_T1234A789_resident.json"
         assert expected_manifest_path.exists()
 
         with open(expected_manifest_path, "r", encoding="UTF-8") as f:
@@ -311,7 +311,7 @@ def test_simple_aoh_weight(force_habitat) -> None:
 
         # Check basic facts
         assert manifest["id_no"] == "1234"
-        assert manifest["season"] == "1"
+        assert manifest["season"] == "resident"
         assert manifest["elevation_lower"] == 100
         assert manifest["elevation_upper"] == 200
         assert manifest["full_habitat_code"] == "1.1"
@@ -376,9 +376,9 @@ def test_simple_aoh_multiple_habitats(force_habitat) -> None:
             force_habitat=force_habitat,
         )
 
-        expected_geotiff_path = output_dir / "aoh_T1234A789_1.tif"
+        expected_geotiff_path = output_dir / "aoh_T1234A789_resident.tif"
         assert expected_geotiff_path.exists()
-        expected_manifest_path = output_dir / "aoh_T1234A789_1.json"
+        expected_manifest_path = output_dir / "aoh_T1234A789_resident.json"
         assert expected_manifest_path.exists()
 
         with open(expected_manifest_path, "r", encoding="UTF-8") as f:
@@ -386,7 +386,7 @@ def test_simple_aoh_multiple_habitats(force_habitat) -> None:
 
         # Check basic facts
         assert manifest["id_no"] == "1234"
-        assert manifest["season"] == "1"
+        assert manifest["season"] == "resident"
         assert manifest["elevation_lower"] == 100
         assert manifest["elevation_upper"] == 200
         assert manifest["full_habitat_code"] == "1.1|2.0"
@@ -449,9 +449,9 @@ def test_no_overlapping_habitats(force_habitat) -> None:
             force_habitat=force_habitat,
         )
 
-        expected_geotiff_path = output_dir / "aoh_T1234A789_1.tif"
+        expected_geotiff_path = output_dir / "aoh_T1234A789_resident.tif"
         assert expected_geotiff_path.exists() == (not force_habitat)
-        expected_manifest_path = output_dir / "aoh_T1234A789_1.json"
+        expected_manifest_path = output_dir / "aoh_T1234A789_resident.json"
         assert expected_manifest_path.exists()
 
         with open(expected_manifest_path, "r", encoding="UTF-8") as f:
@@ -459,7 +459,7 @@ def test_no_overlapping_habitats(force_habitat) -> None:
 
         # Check basic facts
         assert manifest["id_no"] == "1234"
-        assert manifest["season"] == "1"
+        assert manifest["season"] == "resident"
         assert manifest["elevation_lower"] == 100
         assert manifest["elevation_upper"] == 200
         assert manifest["full_habitat_code"] == "42.0"
@@ -512,9 +512,9 @@ def test_no_elevation_aoh(force_habitat) -> None:
             force_habitat=force_habitat,
         )
 
-        expected_geotiff_path = output_dir / "aoh_T1234A789_1.tif"
+        expected_geotiff_path = output_dir / "aoh_T1234A789_resident.tif"
         assert expected_geotiff_path.exists()
-        expected_manifest_path = output_dir / "aoh_T1234A789_1.json"
+        expected_manifest_path = output_dir / "aoh_T1234A789_resident.json"
         assert expected_manifest_path.exists()
 
         with open(expected_manifest_path, "r", encoding="UTF-8") as f:
@@ -522,7 +522,7 @@ def test_no_elevation_aoh(force_habitat) -> None:
 
         # Check basic facts
         assert manifest["id_no"] == "1234"
-        assert manifest["season"] == "1"
+        assert manifest["season"] == "resident"
         assert manifest["elevation_lower"] == 2100
         assert manifest["elevation_upper"] == 2200
         assert manifest["full_habitat_code"] == "1.1"
@@ -588,12 +588,12 @@ def test_simple_aoh_area() -> None:
         expected_area = yg.area_raster(("WGS84", (360/200, -180/200)))
 
         with (
-            yg.read_raster(output_dir_without_area / "aoh_T1234A789_1.tif") as aoh_sans_area,
-            yg.read_raster(output_dir_with_area / "aoh_T1234A789_1.tif") as aoh_with_area,
+            yg.read_raster(output_dir_without_area / "aoh_T1234A789_resident.tif") as aoh_sans_area,
+            yg.read_raster(output_dir_with_area / "aoh_T1234A789_resident.tif") as aoh_with_area,
         ):
-            with open(output_dir_without_area / "aoh_T1234A789_1.json", "r", encoding="UTF-8") as f:
+            with open(output_dir_without_area / "aoh_T1234A789_resident.json", "r", encoding="UTF-8") as f:
                 sans_area_manifest = json.load(f)
-            with open(output_dir_with_area / "aoh_T1234A789_1.json", "r", encoding="UTF-8") as f:
+            with open(output_dir_with_area / "aoh_T1234A789_resident.json", "r", encoding="UTF-8") as f:
                 with_area_manifest = json.load(f)
 
             # Check calculated values. All habitat layers for this
@@ -669,10 +669,10 @@ def test_simple_aoh_area_and_weights() -> None:
         expected_area = yg.area_raster(("WGS84", (360/200, -180/200)))
 
         with (
-            yg.read_raster(output_dir_without_area / "aoh_T1234A789_1.tif") as aoh_sans_area,
-            yg.read_raster(output_dir_with_area / "aoh_T1234A789_1.tif") as aoh_with_area,
+            yg.read_raster(output_dir_without_area / "aoh_T1234A789_resident.tif") as aoh_sans_area,
+            yg.read_raster(output_dir_with_area / "aoh_T1234A789_resident.tif") as aoh_with_area,
         ):
-            with open(output_dir_with_area / "aoh_T1234A789_1.json", "r", encoding="UTF-8") as f:
+            with open(output_dir_with_area / "aoh_T1234A789_resident.json", "r", encoding="UTF-8") as f:
                 with_area_manifest = json.load(f)
 
             manual_version_total = (aoh_sans_area * expected_area * 2).sum()
@@ -756,9 +756,9 @@ def test_simple_aoh_vector_mask(mask_area,overlap) -> None:
             weight_layer_paths=[mask_path],
         )
 
-        with open(output_dir_without_mask / "aoh_T1234A789_1.json", "r", encoding="UTF-8") as f:
+        with open(output_dir_without_mask / "aoh_T1234A789_resident.json", "r", encoding="UTF-8") as f:
             without_mask_manifest = json.load(f)
-        with open(output_dir_with_mask / "aoh_T1234A789_1.json", "r", encoding="UTF-8") as f:
+        with open(output_dir_with_mask / "aoh_T1234A789_resident.json", "r", encoding="UTF-8") as f:
             with_mask_manifest = json.load(f)
 
         assert without_mask_manifest["aoh_total"] > 0
@@ -767,8 +767,8 @@ def test_simple_aoh_vector_mask(mask_area,overlap) -> None:
 
         try:
             with (
-                yg.read_raster(output_dir_without_mask / "aoh_T1234A789_1.tif") as aoh_sans_mask,
-                yg.read_raster(output_dir_with_mask / "aoh_T1234A789_1.tif") as aoh_with_mask,
+                yg.read_raster(output_dir_without_mask / "aoh_T1234A789_resident.tif") as aoh_sans_mask,
+                yg.read_raster(output_dir_with_mask / "aoh_T1234A789_resident.tif") as aoh_with_mask,
             ):
                 sans_mask_version_total = aoh_sans_mask.sum()
                 mask_version_total = aoh_with_mask.sum()
@@ -828,8 +828,8 @@ def test_simple_aoh_constant_weight(constant) -> None:
         )
 
         with (
-            yg.read_raster(output_dir_without_mask / "aoh_T1234A789_1.tif") as aoh_sans_mask,
-            yg.read_raster(output_dir_with_mask / "aoh_T1234A789_1.tif") as aoh_with_mask,
+            yg.read_raster(output_dir_without_mask / "aoh_T1234A789_resident.tif") as aoh_sans_mask,
+            yg.read_raster(output_dir_with_mask / "aoh_T1234A789_resident.tif") as aoh_with_mask,
         ):
             sans_mask_version_total = aoh_sans_mask.sum()
             mask_version_total = aoh_with_mask.sum()

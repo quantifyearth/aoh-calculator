@@ -81,7 +81,7 @@ def main() -> None:
     parser.add_argument(
         '--speciesdata',
         type=Path,
-        help="Single species/seasonality geojson.",
+        help="Single species/seasonality geojson, or multispecies GPKG.",
         required=True,
         dest="species_data_path"
     )
