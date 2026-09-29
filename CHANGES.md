@@ -1,3 +1,9 @@
+## v3.1.0 (29/09/2026)
+
+### Changed
+
+* Species input data can now come from a GeoJSON or GPKG file, and can contain multiple species (before only a single species was supported). If multiple species are present they will be processed serially.
+
 ## v3.0.1 (14/06/2026)
 
 ### Changed
