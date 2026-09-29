@@ -154,6 +154,7 @@ def aohcalc_binary(
             logger.error("Species data missing one or more needed attributes")
             species_info.save_manifest(output_directory_path, "Species data missing one or more needed attributes")
             continue
+        print(elevation_lower, elevation_upper)
 
         habitat_list = species_info.habitat_list
         if force_habitat and len(habitat_list) == 0:
@@ -163,7 +164,11 @@ def aohcalc_binary(
             continue
 
         # This is problematic, as it assumes the types on the ID and assessment field are strings
-        where_filter=f"(id_no='{species_info.species_id}') and (assessment_id='{species_info.assessment_id}') and (season='{species_info.season}')"
+        where_filter = (
+            f"(id_no='{species_info.species_id}') "
+            f"and (assessment_id='{species_info.assessment_id}') "
+            f"and (season='{species_info.season}')"
+        )
         range_map = yg.read_shape_like(
             species_data_path,
             min_elevation_map,

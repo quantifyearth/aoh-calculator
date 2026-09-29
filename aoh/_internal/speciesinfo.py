@@ -34,16 +34,6 @@ def crosswalk_habitats(crosswalk_table: dict[str, list[int]], raw_habitats: set[
 class SpeciesInfo:
 
     def __init__(self, row, crosswalk_table) -> None:
-        # os.environ["OGR_GEOJSON_MAX_OBJ_SIZE"] = "0"
-#         filtered_species_info = gpd.read_file(species_data_path)
-#         if filtered_species_info.shape[0] != 1:
-#             raise ValueError("Expected just single species entry per GeoJSON file")
-#
-#         # We drop the geometry as that's a lot of data, more than the raster often, and make
-#         # sure things are typed in regular Python types for later saving to JSON.
-#         self.species_info = filtered_species_info.drop('geometry', axis=1)
-#         self.manifest = {k: v[0].item() if hasattr(v[0], 'item') else v[0] for (k, v) in self.species_info.items()}
-
         self.species_info = row
         print(row)
         self.manifest = {k: v.item() if hasattr(v, 'item') else v for (k, v) in row.items()}
@@ -127,7 +117,3 @@ class SpeciesInfoGenerator:
     def __iter__(self) -> Iterator[SpeciesInfo]:
         for _, row in self.species_info.iterrows():
             yield SpeciesInfo(row, self.crosswalk_table)
-
-
-
-

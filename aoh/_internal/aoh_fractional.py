@@ -192,9 +192,16 @@ def aohcalc_fractional(
 
         habitat_maps = [yg.read_raster(x) for x in habitat_map_files]
 
+        # This is problematic, as it assumes the types on the ID and assessment field are strings
+        where_filter = (
+            f"(id_no='{species_info.species_id}') "
+            f"and (assessment_id='{species_info.assessment_id}') "
+            f"and (season='{species_info.season}')"
+        )
         range_map = yg.read_shape_like(
             species_data_path,
             min_elevation_map,
+            where_filter=where_filter,
             datatype=yg.DataType.Float32,
         )
 
