@@ -18,6 +18,7 @@ def aohcalc_binary(
     weight_layer_paths: list[Path | str | float | int ] | None = None,
     force_habitat: bool=False,
     multiply_by_area_per_pixel: bool=False,
+    allow_non_iucn_habitat_codes: bool=False,
 ) -> None:
     """Calculate as Area of Habitat using classified/discrete habitat data.
 
@@ -66,6 +67,9 @@ def aohcalc_binary(
         multiply_by_area_per_pixel: If True, for each pixel multiply its value by
             the area of that pixel in metres squared based on the map projection
             and pixel scale.
+        allow_non_iucn_habitat_codes: By default is False, which means habitat codes
+            are validated as level 1 or level 2 IUCN habitat codes (1, 1.1, 1.2, etc.).
+            If True then any label is allowed.
 
     Returns:
         None. Outputs are written to files in output_directory_path.
@@ -122,7 +126,11 @@ def aohcalc_binary(
 
     output_directory_path.mkdir(parents=True, exist_ok=True)
 
-    species_infos = SpeciesInfoGenerator(species_data_path, crosswalk_path)
+    species_infos = SpeciesInfoGenerator(
+        species_data_path,
+        crosswalk_path,
+        validate_iucn_habitats=not allow_non_iucn_habitat_codes,
+    )
 
     habitat_map = yg.read_raster(habitat_path)
 
@@ -154,7 +162,6 @@ def aohcalc_binary(
             logger.error("Species data missing one or more needed attributes")
             species_info.save_manifest(output_directory_path, "Species data missing one or more needed attributes")
             continue
-        print(elevation_lower, elevation_upper)
 
         habitat_list = species_info.habitat_list
         if force_habitat and len(habitat_list) == 0:
