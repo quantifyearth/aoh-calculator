@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import geojson # type: ignore
@@ -64,14 +65,20 @@ def generate_species_info(
     output_path: Path,
     elevation_range: tuple[int,int],
     habitat_codes: set[str],
+    use_old_habitat_format: bool = True,
 ) -> None:
+    if use_old_habitat_format:
+        full_habitat_code = "|".join(sorted(list(habitat_codes)))
+    else:
+        full_habitat_code = json.dumps(list(habitat_codes))
+
     properties = {
         "id_no": "1234",
         "assessment_id": "789",
         "season": "resident",
         "elevation_lower": float(elevation_range[0]),
         "elevation_upper": float(elevation_range[1]),
-        "full_habitat_code": "|".join(sorted(list(habitat_codes))),
+        "full_habitat_code": full_habitat_code,
     }
     coordinates = [[
         [-90, -45],

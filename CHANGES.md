@@ -1,3 +1,10 @@
+## v3.1.1 (11/11/2026)
+
+### Changed
+
+* By default validate habitat codes as being from the IUCN habitat list at level 1 or level 2 (1, 1.1, etc.)
+* Allow the `full_habitat_code` to be JSON encoded list
+
 ## v3.1.0 (29/09/2026)
 
 ### Changed

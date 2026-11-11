@@ -18,6 +18,7 @@ def aohcalc_fractional(
     weight_layer_paths: list[Path | str | float | int ] | None = None,
     force_habitat: bool=False,
     multiply_by_area_per_pixel: bool=False,
+    allow_non_iucn_habitat_codes: bool=False,
 ) -> None:
     """Calculate an Area of Habitat using fractional/proportional habitat data.
 
@@ -75,6 +76,9 @@ def aohcalc_fractional(
         multiply_by_area_per_pixel: If True, for each pixel multiply its value by
             the area of that pixel in metres squared based on the map projection
             and pixel scale.
+        allow_non_iucn_habitat_codes: By default is False, which means habitat codes
+            are validated as level 1 or level 2 IUCN habitat codes (1, 1.1, 1.2, etc.).
+            If True then any label is allowed.
 
     Returns:
         None. Outputs are written to files in output_directory_path.
@@ -142,7 +146,11 @@ def aohcalc_fractional(
 
     output_directory_path.mkdir(parents=True, exist_ok=True)
 
-    species_infos = SpeciesInfoGenerator(species_data_path, crosswalk_path)
+    species_infos = SpeciesInfoGenerator(
+        species_data_path,
+        crosswalk_path,
+        validate_iucn_habitats=not allow_non_iucn_habitat_codes,
+    )
 
     if isinstance(elevation_path, Path):
         min_elevation_map = yg.read_raster(elevation_path)

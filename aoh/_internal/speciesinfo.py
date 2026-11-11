@@ -9,7 +9,10 @@ import pandas as pd
 
 from .utils import IUCNFormatFilename
 
-def load_crosswalk_table(table_file_name: Path) -> dict[str,list[int]]:
+def load_crosswalk_table(
+    table_file_name: Path,
+    validate_iucn_habitats: bool = True,
+) -> dict[str,list[int]]:
     rawdata = pd.read_csv(table_file_name)
     result : dict[str,list[int]] = {}
     for _, row in rawdata.iterrows():
@@ -18,6 +21,13 @@ def load_crosswalk_table(table_file_name: Path) -> dict[str,list[int]]:
             result[code].append(int(row.value))
         except KeyError:
             result[code] = [int(row.value)]
+    if validate_iucn_habitats:
+        # if we're working with IUCN habitat classes all keys should be valid floats
+        for habitat_key in result:
+            try:
+                float(habitat_key)
+            except ValueError as exc:
+                raise ValueError("Non-IUCN habitat code found in crosswalk") from exc
     return result
 
 def crosswalk_habitats(crosswalk_table: dict[str, list[int]], raw_habitats: set[str]) -> set[int]:
@@ -33,11 +43,11 @@ def crosswalk_habitats(crosswalk_table: dict[str, list[int]], raw_habitats: set[
 
 class SpeciesInfo:
 
-    def __init__(self, row, crosswalk_table) -> None:
+    def __init__(self, row, crosswalk_table, validate_iucn_habitats) -> None:
         self.species_info = row
-        print(row)
         self.manifest = {k: v.item() if hasattr(v, 'item') else v for (k, v) in row.items()}
         self.crosswalk_table = crosswalk_table
+        self.validate_iucn_habitats = validate_iucn_habitats
 
     @property
     def species_id(self) -> int:
@@ -76,7 +86,24 @@ class SpeciesInfo:
     @property
     def raw_habitats(self) -> set[str]:
         try:
-            return set(self.species_info.full_habitat_code.split('|'))
+            # We support two formats - | separated versions or encoded JSON
+            try:
+                habitats = json.loads(self.species_info.full_habitat_code)
+                # "1.1" will decode as a float
+                if not isinstance(habitats, list):
+                    habitats = {str(habitats)}
+            except json.decoder.JSONDecodeError:
+                habitats = set(self.species_info.full_habitat_code.split('|'))
+
+            if self.validate_iucn_habitats:
+                for habitat in habitats:
+                    try:
+                        _ = float(habitat)
+                    except ValueError as exc:
+                        self.manifest["error"] = f"Malformed habitat value: {habitat}"
+                        raise ValueError(self.manifest["error"]) from exc
+            self.manifest['full_habitat_code'] = '|'.join(sorted(habitats))
+            return habitats
         except (AttributeError, TypeError) as exc:
             self.manifest["error"] = "Species data missing or corrupt habitat data"
             raise ValueError(self.manifest["error"]) from exc
@@ -104,7 +131,12 @@ class SpeciesInfo:
 
 class SpeciesInfoGenerator:
 
-    def __init__(self, species_data_path: Path, crosswalk_path: Path) -> None:
+    def __init__(
+        self,
+        species_data_path: Path,
+        crosswalk_path: Path,
+        validate_iucn_habitats: bool = True,
+    ) -> None:
         os.environ["OGR_GEOJSON_MAX_OBJ_SIZE"] = "0"
         filtered_species_info = gpd.read_file(species_data_path)
 
@@ -112,8 +144,9 @@ class SpeciesInfoGenerator:
         # sure things are typed in regular Python types for later saving to JSON.
         self.species_info = filtered_species_info.drop('geometry', axis=1)
 
-        self.crosswalk_table = load_crosswalk_table(crosswalk_path)
+        self.crosswalk_table = load_crosswalk_table(crosswalk_path, validate_iucn_habitats)
+        self.validate_iucn_habitats = validate_iucn_habitats
 
     def __iter__(self) -> Iterator[SpeciesInfo]:
         for _, row in self.species_info.iterrows():
-            yield SpeciesInfo(row, self.crosswalk_table)
+            yield SpeciesInfo(row, self.crosswalk_table, self.validate_iucn_habitats)

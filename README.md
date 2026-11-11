@@ -116,6 +116,7 @@ aohcalc_binary(
     weight_layer_paths=["pixel_areas.tif"],  # optional
     force_habitat=False,  # optional
     multiply_by_area_per_pixel=False,  # optional
+    allow_non_iucn_habitat_codes=False,  # optional
 )
 
 # Fractional method - for proportional habitat coverage
@@ -128,6 +129,7 @@ aohcalc_fractional(
     weight_layer_paths=["pixel_areas.tif"],  # optional
     force_habitat=False,  # optional
     multiply_by_area_per_pixel=False,  # optional
+    allow_non_iucn_habitat_codes=False,  # optional
 )
 
 # Other utilities
@@ -153,7 +155,7 @@ $ aoh-calc --help
 usage: aoh-calc [-h] [--fractional_habitats FRACTIONAL_HABITAT_PATH | --classified_habitat DISCRETE_HABITAT_PATH]
                 [--elevation ELEVATION_PATH | --elevation-min MIN_ELEVATION_PATH --elevation-max MAX_ELEVATION_PATH]
                 [--weights WEIGHT_PATHS] --crosswalk CROSSWALK_PATH
-                --speciesdata SPECIES_DATA_PATH [--force-habitat]
+                --speciesdata SPECIES_DATA_PATH [--force-habitat] [--allow-non-iucn-habitat-codes]
                 --output OUTPUT_PATH
 
 Area of habitat calculator.
@@ -182,6 +184,8 @@ options:
   --speciesdata SPECIES_DATA_PATH
                         Single species/seasonality geojson.
   --force-habitat       If set, don't treat an empty habitat layer as per IUCN RLTWG.
+  --allow-non-iucn-habitat-codes
+                        If set, turn off IUCN level 1/2 habitat code validation.
   --output OUTPUT_PATH  Directory where area geotiffs should be stored.
 ```
 
@@ -213,6 +217,7 @@ Two files are created in the output directory:
 
 **Other Flags:**
 - `--force-habitat`: Prevents fallback to range when habitat filtering yields zero area (useful for land-use change scenarios)
+- `--allow-non-iucn-habitat-codes`: By default the tool attempts to validate habitat codes as level 1 or level 2 IUCN habitat codes (e.g., "1", "1.1")
 
 See the "Input Data Requirements" section above for detailed format specifications.
 

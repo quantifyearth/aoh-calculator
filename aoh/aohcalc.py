@@ -92,6 +92,12 @@ def main() -> None:
         action='store_true',
     )
     parser.add_argument(
+        '--allow-non-iucn-habitat-codes',
+        help="If set, turn off IUCN level 1/2 habitat code validation.",
+        dest="allow_non_iucn_habitat_codes",
+        action='store_true',
+    )
+    parser.add_argument(
         '--output',
         type=Path,
         help='Directory where area geotiff and metadata should be stored.',
@@ -132,6 +138,7 @@ def main() -> None:
             args.weight_paths if args.weight_paths else [],
             args.force_habitat,
             args.multiply_by_area_per_pixel,
+            args.allow_non_iucn_habitat_codes,
         )
     else:
         aohcalc_binary(
@@ -143,6 +150,7 @@ def main() -> None:
             args.weight_paths if args.weight_paths else [],
             args.force_habitat,
             args.multiply_by_area_per_pixel,
+            args.allow_non_iucn_habitat_codes,
         )
 
 if __name__ == "__main__":

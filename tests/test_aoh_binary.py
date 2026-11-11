@@ -39,7 +39,8 @@ def generate_habitat_map(
 
 
 @pytest.mark.parametrize("force_habitat", [True, False])
-def test_simple_aoh(force_habitat) -> None:
+@pytest.mark.parametrize("use_old_habitat_format", [True, False])
+def test_simple_aoh(force_habitat: bool, use_old_habitat_format: bool) -> None:
     dims = (200, 100)
 
     with tempfile.TemporaryDirectory() as tempdir:
@@ -66,7 +67,12 @@ def test_simple_aoh(force_habitat) -> None:
         generate_crosswalk(crosswalk_path, crosswalk)
 
         species_data_path = tmp / "species.geojson"
-        generate_species_info(species_data_path, (100, 200), {"1.1"})
+        generate_species_info(
+            species_data_path,
+            (100, 200),
+            {"1.1"},
+            use_old_habitat_format,
+        )
 
         output_dir = tmp / "results"
         aohcalc_binary(
@@ -256,7 +262,8 @@ def test_simple_aoh_weight(force_habitat) -> None:
         assert (data == expected).all()
 
 @pytest.mark.parametrize("force_habitat", [True, False])
-def test_simple_aoh_multiple_habitats(force_habitat) -> None:
+@pytest.mark.parametrize("use_old_habitat_format", [True, False])
+def test_simple_aoh_multiple_habitats(force_habitat: bool, use_old_habitat_format: bool) -> None:
     with tempfile.TemporaryDirectory() as tempdir:
         tmp = Path(tempdir)
 
@@ -276,13 +283,18 @@ def test_simple_aoh_multiple_habitats(force_habitat) -> None:
             "1.2": {100, 102},
             "2.0": {200, 201},
             "2.1": {200, 201},
-            "3,0": {300},
+            "3.0": {300},
         }
         crosswalk_path = tmp / "crosswalk.csv"
         generate_crosswalk(crosswalk_path, crosswalk)
 
         species_data_path = tmp / "species.geojson"
-        generate_species_info(species_data_path, (100, 200), {"1.1", "2.0"})
+        generate_species_info(
+            species_data_path,
+            (100, 200),
+            {"1.1", "2.0"},
+            use_old_habitat_format,
+        )
 
         output_dir = tmp / "results"
         aohcalc_binary(
@@ -349,7 +361,7 @@ def test_no_overlapping_habitats(force_habitat) -> None:
             "1.2": {100, 102},
             "2.0": {200, 201},
             "2.1": {200, 201},
-            "3,0": {300},
+            "3.0": {300},
         }
         crosswalk_path = tmp / "crosswalk.csv"
         generate_crosswalk(crosswalk_path, crosswalk)
@@ -963,3 +975,129 @@ def test_multiple_aoh_areas(ext) -> None:
                 assert (output_dir_with_area / f"aoh_{stub}_resident.tif").exists() is False
                 assert sans_area_manifest["error"] == "No habitats found in crosswalk"
                 assert with_area_manifest["error"] == "No habitats found in crosswalk"
+
+
+@pytest.mark.parametrize("force_habitat", [True, False])
+@pytest.mark.parametrize("use_old_habitat_format", [True, False])
+def test_simple_non_iucn_aoh(force_habitat: bool, use_old_habitat_format: bool) -> None:
+    dims = (200, 100)
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        tmp = Path(tempdir)
+
+        habitats_path = tmp / "habitat.tif"
+        generate_habitat_map(
+            habitats_path,
+            dims,
+            {100, 200},
+        )
+
+        elevation_path = tmp / "elevation.tif"
+        generate_flat_elevation_map(elevation_path, dims, 150)
+
+        crosswalk = {
+            "beach": {100, 101, 102},
+            "forest": {100, 101},
+            "park": {100, 102},
+            "ocean": {200, 201},
+            "rock": {200, 201},
+        }
+        crosswalk_path = tmp / "crosswalk.csv"
+        generate_crosswalk(crosswalk_path, crosswalk)
+
+        species_data_path = tmp / "species.geojson"
+        generate_species_info(
+            species_data_path,
+            (100, 200),
+            {"forest"},
+            use_old_habitat_format,
+        )
+
+        output_dir = tmp / "results"
+        aohcalc_binary(
+            habitats_path,
+            elevation_path,
+            crosswalk_path,
+            species_data_path,
+            output_dir,
+            force_habitat=force_habitat,
+            allow_non_iucn_habitat_codes=True,
+        )
+
+        expected_manifest_path = output_dir / "aoh_T1234A789_resident.json"
+        assert expected_manifest_path.exists()
+        expected_geotiff_path = output_dir / "aoh_T1234A789_resident.tif"
+        assert expected_geotiff_path.exists()
+
+        with open(expected_manifest_path, "r", encoding="UTF-8") as f:
+            manifest = json.load(f)
+
+        # Check basic facts
+        assert manifest["id_no"] == "1234"
+        assert manifest["season"] == "resident"
+        assert manifest["elevation_lower"] == 100
+        assert manifest["elevation_upper"] == 200
+        assert manifest["full_habitat_code"] == "forest"
+
+        # Check calculated values. All habitat layers for this
+        # test are 50%
+        assert manifest["range_total"] == dims[0] * dims[1] * 0.25
+        assert manifest["dem_total"] == dims[0] * dims[1] * 0.25
+        assert manifest["hab_total"] == dims[0] * dims[1] * 0.25 * 0.5
+        assert manifest["aoh_total"] == dims[0] * dims[1] * 0.25 * 0.5
+        assert manifest["prevalence"] == 0.5
+
+        with yg.read_raster(expected_geotiff_path) as result:
+            width, height = result.dimensions
+            assert width == dims[0] / 2
+            assert height == dims[1] / 2
+            data = result.read_array(0, 0, width, height)
+        expected = np.array(
+            [1, 0] * ((width * height) // 2)
+        )[:width * height]
+        expected = expected.reshape(height, width)
+        assert (data == expected).all()
+
+
+def test_simple_non_iucn_aoh_fails_by_default() -> None:
+    dims = (200, 100)
+
+    with tempfile.TemporaryDirectory() as tempdir:
+        tmp = Path(tempdir)
+
+        habitats_path = tmp / "habitat.tif"
+        generate_habitat_map(
+            habitats_path,
+            dims,
+            {100, 200},
+        )
+
+        elevation_path = tmp / "elevation.tif"
+        generate_flat_elevation_map(elevation_path, dims, 150)
+
+        crosswalk = {
+            "beach": {100, 101, 102},
+            "forest": {100, 101},
+            "park": {100, 102},
+            "ocean": {200, 201},
+            "rock": {200, 201},
+        }
+        crosswalk_path = tmp / "crosswalk.csv"
+        generate_crosswalk(crosswalk_path, crosswalk)
+
+        species_data_path = tmp / "species.geojson"
+        generate_species_info(
+            species_data_path,
+            (100, 200),
+            {"forest"},
+        )
+
+        output_dir = tmp / "results"
+        with pytest.raises(ValueError):
+            aohcalc_binary(
+                habitats_path,
+                elevation_path,
+                crosswalk_path,
+                species_data_path,
+                output_dir,
+                allow_non_iucn_habitat_codes=False)
