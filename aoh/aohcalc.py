@@ -8,7 +8,7 @@ from ._internal import aohcalc_fractional, aohcalc_binary
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)-8s %(message)s')
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Area of habitat calculator.")
     parser.add_argument(
         '--version',
@@ -104,6 +104,11 @@ def main() -> None:
         required=True,
         dest='output_path',
     )
+    return parser
+
+
+def main() -> None:
+    parser = build_parser()
     args = parser.parse_args()
 
     has_fractional = args.fractional_habitat_path is not None

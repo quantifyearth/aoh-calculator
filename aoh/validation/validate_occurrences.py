@@ -189,7 +189,7 @@ def validate_occurrences(
     summary = pd.DataFrame(cleaned_results)
     summary.to_csv(output_path, index=False)
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate occurrence prevelance.")
     parser.add_argument(
         '--version',
@@ -232,6 +232,10 @@ def main() -> None:
         dest="processes_count",
         help="Optional number of concurrent threads to use."
     )
+    return parser
+
+def main() -> None:
+    parser = build_parser()
     args = parser.parse_args()
 
     validate_occurrences(

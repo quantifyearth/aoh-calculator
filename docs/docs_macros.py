@@ -28,8 +28,8 @@ def _walk(parser, level):
         f"{'#' * level} `{parser.prog}`\n",
         "```text\n" + parser.format_help().rstrip() + "\n```\n",
     ]
-    for action in parser._actions:
-        if isinstance(action, argparse._SubParsersAction):
+    for action in parser._actions:  # pylint: disable=W0212
+        if isinstance(action, argparse._SubParsersAction): # pylint: disable=W0212
             for sub in action.choices.values():
                 out += _walk(sub, level + 1)
     return out

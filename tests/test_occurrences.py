@@ -8,7 +8,7 @@ import pytest
 import yirgacheffe as yg
 from shapely.geometry import mapping, Polygon
 
-from aoh.validation.validate_occurences import process_species
+from aoh.validation.validate_occurrences import process_species
 
 def generate_occurrence_cluster(
     latitude: float,
@@ -108,14 +108,14 @@ def test_simple_match_in_out_range(
             aoh_path = tmpdir_path / f"aoh_T{test_id}A1_RESIDENT.tif"
             generate_faux_aoh(aoh_path)
 
-        occurences = generate_occurrence_cluster(latitude, longitude, 20, 2.0)
+        occurrences = generate_occurrence_cluster(latitude, longitude, 20, 2.0)
         df = pd.DataFrame(
-            [(taxon_id, lat, lng) for (lat, lng) in occurences],
+            [(taxon_id, lat, lng) for (lat, lng) in occurrences],
             columns=['iucn_taxon_id', 'decimalLatitude', 'decimalLongitude']
         )
         result = process_species(tmpdir_path, tmpdir_path, df)
         assert result.iucn_taxon_id == taxon_id
-        assert result.total_records == len(occurences)
+        assert result.total_records == len(occurrences)
         assert result.is_valid == is_valid
         assert result.is_outlier == expected_outlier
 
@@ -148,11 +148,11 @@ def test_bilinear_interprolation_lat(
         # The AOH by default is 100x100 pixels, in 0.1 degree increments from -5.0 to 5.0
         # on both axis. But due to how the algorithm works, we should actually find pixels
         # just outside the AOH also return true.
-        occurences = [
+        occurrences = [
             (42, latitude, -4.0 + (0.2 * i)) for i in range(25)
         ]
         df = pd.DataFrame(
-            occurences,
+            occurrences,
             columns=['iucn_taxon_id', 'decimalLatitude', 'decimalLongitude']
         )
         result = process_species(tmpdir_path, tmpdir_path, df)
@@ -193,11 +193,11 @@ def test_bilinear_interprolation_lng(
         # The AOH by default is 100x100 pixels, in 0.1 degree increments from -5.0 to 5.0
         # on both axis. But due to how the algorithm works, we should actually find pixels
         # just outside the AOH also return true.
-        occurences = [
+        occurrences = [
             (42, -4.0 + (0.2 * i), longitude) for i in range(25)
         ]
         df = pd.DataFrame(
-            occurences,
+            occurrences,
             columns=['iucn_taxon_id', 'decimalLatitude', 'decimalLongitude']
         )
         result = process_species(tmpdir_path, tmpdir_path, df)
@@ -225,15 +225,15 @@ def test_occurrence_prevalence_of_one(
             aoh_path = tmpdir_path / f"aoh_T{test_id}A1_RESIDENT.tif"
             generate_faux_aoh(aoh_path, aoh_radius=5.0, range_radius=5.0)
 
-        occurences = generate_occurrence_cluster(latitude, longitude, 20, 2.0)
+        occurrences = generate_occurrence_cluster(latitude, longitude, 20, 2.0)
         df = pd.DataFrame(
-            [(taxon_id, lat, lng) for (lat, lng) in occurences],
+            [(taxon_id, lat, lng) for (lat, lng) in occurrences],
             columns=['iucn_taxon_id', 'decimalLatitude', 'decimalLongitude']
         )
 
         result = process_species(tmpdir_path, tmpdir_path, df)
         assert result.iucn_taxon_id == taxon_id
-        assert result.total_records == len(occurences)
+        assert result.total_records == len(occurrences)
         assert result.point_prevalence == expected_prev
         assert result.model_prevalence == 1.0
         assert result.is_valid == is_valid
@@ -315,15 +315,15 @@ def test_aoh_not_in_wgs84(
             )
 
         # Occurrences are still in EPSG:4326, as that's what GBIF gives us
-        occurences = generate_occurrence_cluster(latitude, longitude, 20, 0.5)
+        occurrences = generate_occurrence_cluster(latitude, longitude, 20, 0.5)
         df = pd.DataFrame(
-            [(taxon_id, lat, lng) for (lat, lng) in occurences],
+            [(taxon_id, lat, lng) for (lat, lng) in occurrences],
             columns=['iucn_taxon_id', 'decimalLatitude', 'decimalLongitude']
         )
 
         result = process_species(tmpdir_path, tmpdir_path, df)
         assert result.iucn_taxon_id == taxon_id
-        assert result.total_records == len(occurences)
+        assert result.total_records == len(occurrences)
         assert result.point_prevalence == expected_prev
         assert result.model_prevalence == 1.0
         assert result.is_valid == is_valid

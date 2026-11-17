@@ -103,7 +103,7 @@ def habitat_process(
             habitat,
         )
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Downsample habitat map to raster per terrain type.")
     parser.add_argument(
         '--version',
@@ -147,6 +147,10 @@ def main() -> None:
         dest="processes_count",
         help="Optional number of concurrent threads to use."
     )
+    return parser
+
+def main() -> None:
+    parser = build_parser()
     args = parser.parse_args()
 
     has_projection = args.target_projection is not None

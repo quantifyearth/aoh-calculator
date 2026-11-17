@@ -52,7 +52,7 @@ nav:
       - Validation:
         - aoh-collate-data: cli/aoh-collate-data.md
         - aoh-fetch-gbif-data: cli/aoh-fetch-gbif-data.md
-        - aoh-validate-occurences: cli/aoh-validate-occurrences.md
+        - aoh-validate-occurrences: cli/aoh-validate-occurrences.md
         - aoh-validate-prevalence: cli/aoh-validate-prevalence.md
   - API:
       - Binary AOH: api/aohcalc-binary.md

@@ -130,7 +130,7 @@ def species_richness(
                     processes.remove(candidate)
                 time.sleep(1)
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Calculate species richness")
     parser.add_argument(
         '--version',
@@ -159,6 +159,10 @@ def main() -> None:
         dest="processes_count",
         help="Number of concurrent threads to use."
     )
+    return parser
+
+def main() -> None:
+    parser = build_parser()
     args = parser.parse_args()
 
     species_richness(

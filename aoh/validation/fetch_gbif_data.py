@@ -239,7 +239,7 @@ def fetch_gbif_data(
         final_result_path,
     )
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Fetch GBIF records for species for validation.",
         epilog='''
@@ -296,6 +296,10 @@ Environment Variables:
         dest="output_dir_path",
         help="Destination directory for GBIF data.",
     )
+    return parser
+
+def main() -> None:
+    parser = build_parser()
     args = parser.parse_args()
 
     if not args.gbif_username:

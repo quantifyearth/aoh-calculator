@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "aoh"
-version = "3.1.1"
+version = "3.2.0"
 description = "A library for calculating Area of Habitat for species distribution mapping"
 authors = [
     {name = "Michael Dales", email = "mwd24@cam.ac.uk"}
@@ -63,6 +63,12 @@ dev = [
     "pytest-cov",
     "build",
     "twine",
+    "properdocs",
+    "mkdocs-material",
+    "mkdocstrings-python",
+    "mike",
+    "mkdocs-gen-files",
+    "mkdocs-macros-plugin",
 ]
 
 [project.urls]
@@ -77,7 +83,8 @@ aoh-species-richness = "aoh.summaries.species_richness:main"
 aoh-endemism = "aoh.summaries.endemism:main"
 aoh-collate-data = "aoh.validation.collate_data:main"
 aoh-validate-prevalence = "aoh.validation.validate_map_prevalence:main"
-aoh-validate-occurences = "aoh.validation.validate_occurences:main"
+aoh-validate-occurences = "aoh.validation.validate_occurrences:main" # Old typo name
+aoh-validate-occurrences = "aoh.validation.validate_occurrences:main"
 aoh-fetch-gbif-data = "aoh.validation.fetch_gbif_data:main"
 
 [tool.setuptools]

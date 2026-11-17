@@ -193,7 +193,7 @@ def validate_map_prevalence(
         summary_content = generate_results_summary(aoh_df, outliers)
         f.write(summary_content)
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Validate map prevalence.")
     parser.add_argument(
         '--version',
@@ -214,6 +214,10 @@ def main() -> None:
         dest="output_path",
         help="CSV of outliers."
     )
+    return parser
+
+def main() -> None:
+    parser = build_parser()
     args = parser.parse_args()
 
     validate_map_prevalence(
