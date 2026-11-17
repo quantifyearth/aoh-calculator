@@ -40,7 +40,9 @@ extra:
 
 nav:
   - Home: index.md
+  - Installation: installation.md
   - Inputs: inputs.md
+  - Outputs: outputs.md
   - Command line tools:
       - Overview: cli/index.md
       - AOH:
