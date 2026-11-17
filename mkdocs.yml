@@ -1,6 +1,9 @@
 site_name: "AOH"
 site_url: https://aoh.readthedocs.io/
 
+repo_url: https://github.com/quantifyearth/aoh-calculator
+repo_name: quantifyearth/aoh-calculator
+
 theme:
   name: "material"
   primary: "#065f65"
@@ -62,3 +65,4 @@ nav:
   - Code of conduct: CODE_OF_CONDUCT.md
   - Contributing: contributing.md
   - Changelog: changelog.md
+  - Source code: https://github.com/quantifyearth/aoh-calculator
