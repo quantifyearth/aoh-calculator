@@ -1,10 +1,15 @@
+# .readthedocs.yaml
 version: 2
 
 build:
   os: ubuntu-24.04
+  apt_packages:
+    - libgdal-dev
+    - gdal-bin
   tools:
     python: "3.12"
   commands:
-    - pip install -e .
-    - pip install -r docs/requirements.txt
-    - properdocs build -f mkdocs.yml --site-dir $READTHEDOCS_OUTPUT/html
+    - pip install setuptools wheel
+    - pip install "gdal[numpy]==$(gdal-config --version)"
+    - pip install -e .[dev]
+    - properdocs build --site-dir $READTHEDOCS_OUTPUT/html
