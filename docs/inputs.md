@@ -4,7 +4,7 @@ To generate AOH rasters, you will need the following inputs.
 
 ## Species Data
 
-A GeoJSON of GPKG file containing species range and attributes. Each file should include one or more entries with the following data:
+A GeoJSON or GPKG file containing species range and attributes. Each file should include one or more entries with the following data:
 
 - **id_no**: IUCN taxon ID of the species
 - **season**: Season using IUCN codes (1 = resident, 2 = breeding, 3 = non-breeding, 4 = passage, 5 = unknown)
@@ -15,6 +15,7 @@ A GeoJSON of GPKG file containing species range and attributes. Each file should
 
 The `full_habtat_codes` field can be either a set of pipe-separated labels, or if you're using GeoJSON it can be a JSON list of strings. However, note that whilst the GeoJSON spec allows for this, many tools like QGIS and GDAL do not.
 
+By default the habitat codes are assumed to be IUCN level 1 and level 2 habitat codes, and an error will be raised if they are not of that form. You can disable this check with either a command line argument or library call parameter depending on which way you are using the calculator.
 
 ## Habitat Data
 
@@ -26,7 +27,7 @@ The `full_habtat_codes` field can be either a set of pipe-separated labels, or i
 - A directory containing multiple GeoTIFF rasters, one per habitat class
 - Files must be named `lcc_{value}.tif` where `{value}` matches the crosswalk table
 - Each pixel contains a fractional value (typically 0.0-1.0) indicating proportional coverage
-- **Note**: Use the `aoh-habitat-process` tool (described below) to convert a classified habitat map into this format while optionally reprojecting and rescaling
+- **Note**: Use the [aoh-habitat-process](cli/aoh-habitat-process.md) tool to convert a classified habitat map into this format while optionally reprojecting and rescaling
 
 ## Elevation Data
 
@@ -39,8 +40,8 @@ The `full_habtat_codes` field can be either a set of pipe-separated labels, or i
 
 ## Crosswalk Table
 
-A CSV file mapping IUCN habitat codes to raster values with two columns:
-- **code**: IUCN habitat code (e.g., "1.5", "2.1")
+A CSV file mapping habitat codes to raster values with two columns:
+- **code**: Habitat code (e.g., "1.5", "2.1")
 - **value**: Corresponding integer value in the land cover or habitat raster(s)
 
 ## Optional: Weight Layers
@@ -53,5 +54,5 @@ GeoTIFF rasters for scaling or masking:
 
 - All rasters must share the same projection and pixel resolution
 - Elevation units must match between species data and DEM
-- This code has been tested with Lumbierres, Jung, and ESA datasets
+- This code has been tested with Lumbierres et al, Jung et al, and ESA datasets
 - Tested projections: Mercator, Mollweide, and Behrmann

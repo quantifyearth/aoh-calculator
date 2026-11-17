@@ -10,34 +10,8 @@ This package provides two implementations of the AOH method: a binary method and
 
 By default the package generates a binary or fractional coverage per pixel, depending on your input layers, but if you provide the `pixel-area` option then it will covert the results into metres squared per pixel, calculating the area per pixel based on the map projection and pixel scale of the other rasters.
 
-## Installation
 
-The AOH Calculator is available as a Python package and can be installed via pip:
+## Documentation
 
-```bash
-pip install aoh
-```
+The latest version of the documentation can be found on [aoh.readthedocs.io](https://aoh.readthedocs.io/en/latest/).
 
-This provides both command-line tools and a Python library for programmatic use.
-
-For validation tools that require R, install with the validation extra:
-
-```bash
-pip install aoh[validation]
-```
-
-You will also need to following R packages installed: lme4, lmerTest, broom.mixed, emmeans, report, sklearn
-
-### Prerequisites
-
-You'll need GDAL installed on your system. The Python GDAL package version should match your system GDAL version. You can check your GDAL version with:
-
-```bash
-gdalinfo --version
-```
-
-Then install the matching Python package:
-
-```bash
-pip install gdal[numpy]==YOUR_VERSION_HERE
-```
