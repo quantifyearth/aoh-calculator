@@ -1,0 +1,62 @@
+site_name: "AOH"
+site_url: https://aoh.readthedocs.io/
+
+theme:
+  name: "material"
+  primary: "#065f65"
+  features:
+    - header.autohide: false
+    - navigation.instant: true
+
+extra_css:
+  - css/extra.css
+
+plugins:
+- search
+- mkdocstrings:
+    handlers:
+      python:
+        options:
+          inherited_members: true
+          show_docstring_attributes: true
+          show_docstring_functions: true
+- gen-files:
+    scripts:
+    - docs/gen_changelog.py
+- macros:
+    module_name: docs/docs_macros
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+
+extra:
+  version:
+    provider: mike
+
+nav:
+  - Home: index.md
+  - Inputs: inputs.md
+  - Command line tools:
+      - Overview: cli/index.md
+      - AOH:
+        - aoh-calc: cli/aoh-calc.md
+        - aoh-habitat-process: cli/aoh-habitat-process.md
+      - Summaries:
+        - aoh-species-richness: cli/aoh-species-richness.md
+        - aoh-endemism: cli/aoh-endemism.md
+      - Validation:
+        - aoh-collate-data: cli/aoh-collate-data.md
+        - aoh-fetch-gbif-data: cli/aoh-fetch-gbif-data.md
+        - aoh-validate-occurrences: cli/aoh-validate-occurrences.md
+        - aoh-validate-prevalence: cli/aoh-validate-prevalence.md
+  - API:
+      - Binary AOH: api/aohcalc-binary.md
+      - Fractional AOH: api/aohcalc-fractional.md
+  - Code of conduct: CODE_OF_CONDUCT.md
+  - Contributing: contributing.md
+  - Changelog: changelog.md

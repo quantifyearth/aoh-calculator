@@ -177,7 +177,7 @@ def endemism(
                 endemism_final.to_geotiff(output_path, nodata=np.nan)
 
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Calculate species endemism")
     parser.add_argument(
         '--version',
@@ -213,6 +213,10 @@ def main() -> None:
         dest="processes_count",
         help="Number of concurrent threads to use."
     )
+    return parser
+
+def main() -> None:
+    parser = build_parser()
     args = parser.parse_args()
 
     endemism(

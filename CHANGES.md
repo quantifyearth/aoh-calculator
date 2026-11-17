@@ -1,3 +1,13 @@
+## v3.2 (17/11/2026)
+
+### Added
+
+* mkdocs documentation.
+
+### Fixed
+
+* Fixed typo in `aoh-validate-occurrences` name. The old name still works for now, but will go away in 4.0.
+
 ## v3.1.1 (11/11/2026)
 
 ### Changed

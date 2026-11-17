@@ -58,7 +58,7 @@ def collate_data(
     df = pd.DataFrame(res, columns=keys + ['n_habitats'])
     df.to_csv(output_path, index=False)
 
-def main() -> None:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Collate metadata from AOH build.")
     parser.add_argument(
         '--version',
@@ -79,6 +79,10 @@ def main() -> None:
         dest="output_path",
         help="Destination for collated CSV."
     )
+    return parser
+
+def main() -> None:
+    parser = build_parser()
     args = parser.parse_args()
 
     try:

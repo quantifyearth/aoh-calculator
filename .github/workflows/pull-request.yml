@@ -12,7 +12,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    container: ghcr.io/osgeo/gdal:ubuntu-small-3.12.4
+    container: ghcr.io/osgeo/gdal:ubuntu-small-3.13.3
     strategy:
       fail-fast: false
       matrix:
@@ -31,7 +31,7 @@ jobs:
           sed -i 's|http://archive.ubuntu.com/ubuntu|http://azure.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
           sed -i 's|http://security.ubuntu.com/ubuntu|http://azure.archive.ubuntu.com/ubuntu|g' /etc/apt/sources.list.d/ubuntu.sources
           apt-get update -qqy
-          apt-get install -y git python3-pip r-base libtirpc-dev cmake
+          apt-get install -y git python3-pip g++ python3-dev r-base libtirpc-dev cmake
 
       - name: Install R dependencies
         run: R -e "install.packages(c('lme4', 'lmerTest', 'broom'), repos='https://cran.rstudio.com/')" || true
@@ -39,7 +39,7 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install 'gdal[numpy]==3.12.4'
+          python -m pip install 'gdal[numpy]==3.13.3'
           python -m pip install -e .[dev,validation]
 
       - name: Lint with pylint
@@ -47,6 +47,9 @@ jobs:
 
       - name: Type checking
         run: python3 -m mypy .
+
+      - name: Build docs
+        run: properdocs build -f mkdocs.yml
 
       - name: Test with pytest
         run: python3 -m pytest --cov=aoh -vv
@@ -59,7 +62,7 @@ jobs:
           aoh-endemism --help
           aoh-collate-data --help
           aoh-validate-prevalence --help
-          aoh-validate-occurences --help
+          aoh-validate-occurrences --help
           aoh-fetch-gbif-data --help
 
       - name: Test package imports
