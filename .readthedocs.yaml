@@ -8,8 +8,11 @@ build:
     - gdal-bin
   tools:
     python: "3.12"
-  commands:
-    - pip install setuptools wheel
-    - pip install "gdal[numpy]==$(gdal-config --version)"
-    - pip install -e .[dev]
-    - properdocs build --site-dir $READTHEDOCS_OUTPUT/html
+  jobs:
+    post_install:
+      - pip install setuptools wheel
+      - pip install "gdal[numpy]==$(gdal-config --version)"
+      - pip install -e .[dev]
+    build:
+      html:
+        - properdocs build --site-dir $READTHEDOCS_OUTPUT/html
