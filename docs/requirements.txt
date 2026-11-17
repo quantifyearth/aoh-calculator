@@ -1,0 +1,5 @@
+properdocs
+mkdocs-material
+mkdocstrings-python
+mkdocs-gen-files
+mkdocs-macros-plugin

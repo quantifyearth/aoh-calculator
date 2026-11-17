@@ -1,5 +1,5 @@
 site_name: "AOH"
-site_url: "https://aoh.org"
+site_url: https://aoh.readthedocs.io/
 
 theme:
   name: "material"
