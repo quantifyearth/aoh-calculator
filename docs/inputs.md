@@ -19,11 +19,17 @@ By default the habitat codes are assumed to be IUCN level 1 and level 2 habitat 
 
 ## Habitat Data
 
-**For binary/classified method:**
-- A single GeoTIFF raster where each pixel contains an integer value representing a habitat or land cover class
-- Examples: Copernicus Global Land Cover, Jung habitat classification
+The habitat map required can be in one of two forms, depending on if you have a single map layer where every pixel contains the enumerated value of the habitat (e.g., the Jung et al habitat map), of if you have a raster map per habitat class with the proportion of that pixel assigned to that class per pixel.
 
-**For fractional/proportional method:**
+One optimisation for performance is that you can take a high resolution habitat map with a habitat class encoded in each pixel and use the provided [aoh-habitat-process](cli/aoh-habitat-process.md) tool to downscale it a more coarse resolution (e.g., going from 100m per pixel to 1km per pixel) map that is fractional per pixel.
+
+### For binary/classified method:
+
+- A single GeoTIFF raster where each pixel contains an integer value representing a habitat or land cover class
+- Examples: Copernicus Global Land Cover, Jung et al habitat classification
+
+### For fractional/proportional method:
+
 - A directory containing multiple GeoTIFF rasters, one per habitat class
 - Files must be named `lcc_{value}.tif` where `{value}` matches the crosswalk table
 - Each pixel contains a fractional value (typically 0.0-1.0) indicating proportional coverage

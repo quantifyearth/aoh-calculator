@@ -8,7 +8,7 @@ An AOH raster combines data on species range, habitat preferences and elevation 
 
 This package provides two implementations of the AOH method: a binary method and a fractional, or proportional, method. The binary method takes a single land cover or habitat map where each pixel is encoded to a particular land cover or habitat class (e.g., the [Copernicus Land Cover map](https://land.copernicus.eu/en/products/global-dynamic-land-cover) or the [Jung habitat map](https://zenodo.org/records/4058819)). The fractional method takes in a set of rasters, one per class, with each pixel being some proportional value. In this approach if a species has multiple habitat preferences and their maps overlap the resulting value in the AOH map will be a summation of those values.
 
-By default the package generates a binary or fractional coverage per pixel, depending on your input layers, but if you provide the `pixel-area` option then it will covert the results into metres squared per pixel, calculating the area per pixel based on the map projection and pixel scale of the other rasters.
+By default the package generates a binary or fractional coverage per pixel, depending on your input layers, but if you provide the `pixel-area` option then it will covert the results into metres squared per pixel, calculating the area per pixel based on the map projection and pixel scale of the input rasters.
 
 
 ## Documentation
